@@ -86,10 +86,12 @@ async def on_message(message):
             if not re.search(required_url_pattern, parent_message.content, re.IGNORECASE):
                 print("Initial post does not contain a valid URL")
                 valid_attachments = [".wav", ".mp3", ".flac"]
-                if not any(att.filename.lower().endswith(tuple(valid_attachments)) for att in parent_message.attachments):
+                has_valid_attachment = any(att.filename.lower().endswith(tuple(valid_attachments)) for att in parent_message.attachments)
+                if not has_valid_attachment:
+                    print("Initial post does not contain a valid audio file attachment")
                     await parent_message.delete()
-                await message.channel.send(f"{parent_message.author.mention}, your post did not meet the requirements (URL or audio file attachment).")
-                return
+                    await message.channel.send(f"{parent_message.author.mention}, your post did not meet the requirements (URL or audio file attachment).")
+                    return
 
 
            # This code block is checking if a message sent in a public thread channel meets certain
