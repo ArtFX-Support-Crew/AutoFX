@@ -1,21 +1,27 @@
 import discord
 import json
 from discord.ext import commands
-intents = discord.Intents.all()
+from .config import token
+
+intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
-intents = discord.Intents.all()
+intents.guilds = True
+intents.reactions = True
+intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-required_words = ['drums', 'snare', 'low', 'high', 'mix', 'compression', 'womp', 'burrrrrrrrr', 'transient', 'reese']
+
+with open('feedback_terms.txt', 'r') as file:
+    required_words = [line.strip() for line in file]
+
 min_characters = 280
 
-#Functions to load and save karma data to json
 def load_karma_data():
     with open('karma.json', 'r') as f:
         return json.load(f)
-    
+
 def save_karma_data(data):
     with open('karma.json', 'w') as f:
         json.dump(data, f, indent=4)
@@ -29,41 +35,56 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    if message.channel.name == 'bot-dev-forum':
-        if message.reference:
-            initial_message = await message.channel.fetch_message(message.reference.message_id)
-            if initial_message.author != bot.user and message.author != initial_message.author:  # Add the check here
-                data = load_karma_data()
-                thread_id = str(initial_message.id)
-                user_id = str(message.author.id)
+    print(f"Channel name: {message.channel.name}")  # Name of the Thread 
+    print(f"Channel type: {message.channel.type}")  # Type of Channel
 
-                if thread_id in data['threads']:
-                    if user_id not in data['threads'][thread_id]:
-                        data['threads'][thread_id].append(user_id)
+    if message.channel.type == discord.ChannelType.public_thread:
+        print("Processing message in forum channel")  # If a thread in the feedback channel
 
-                        if user_id in data['users']:
-                            data['users'][user_id] += 1
-                        else:
-                            data['users'][user_id] = 1
+        thread_id = str(message.channel.id)
+        user_id = str(message.author.id)
+        data = load_karma_data()
 
-                        save_karma_data(data)
-                        await message.channel.send(f"{message.author.mention} has earned 1 feedback karma point!")
-        else:
-            if len(message.content) < min_characters:
-                await message.delete()
-                await message.channel.send(f"{message.author.mention}, your feedback request must be at least {min_characters} characters long.")
+        if thread_id not in data['threads']:
+            print("Thread not in data. Creating new thread entry.")
+            data['threads'][thread_id] = []
 
-            elif not any(word in message.content.lower() for word in required_words):
-                await message.delete()
-                await message.channel.send(f"{message.author.mention}, your feedback does not meet the municipal standard. Please provide meaningful feedback.")
-    #Requirements met, make the feedback post
+        if user_id not in data['threads'][thread_id]:
+            print("User has not earned karma in this thread")  # Debug print
+
+            async for msg in message.channel.history(oldest_first=True): # Get the initial message in the thread
+                parent_message = msg
+                break
+
+            if message.author == parent_message.author:
+                print("Message author is the initial poster")
+                return
+
+
+            if len(message.content) >= min_characters:
+                print("Message length requirement met")  # Debug print
             else:
-                print("Message meets requirements")  # Debug print
-                data = load_karma_data()
-                thread_id = str(message.id)
-                data['threads'][thread_id] = []
-                save_karma_data(data)
+                print("Message length requirement not met")
+                return
+
+            if any(word in message.content.lower() for word in required_words):
+                print("Message contains required words")  # Debug print
+            else:
+                print("Message does not contain required words")
+                return
+
+            data['threads'][thread_id].append(user_id)
+
+            if user_id in data['users']:
+                data['users'][user_id] += 1
+            else:
+                data['users'][user_id] = 1
+
+            save_karma_data(data)
+            await message.add_reaction('✅')
+            await message.channel.send(f"{message.author.mention} has earned 1 feedback karma point!")
 
     await bot.process_commands(message)
 
-bot.run('MTA0MzU2NzM1ODExNzE2NzE4NA.G_xNgy._BIMa0RSxt88e9ibyM6GsNoeB4hrX2pjiKQO8s')
+
+bot.run(token)

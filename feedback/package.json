@@ -1,5 +1,17 @@
 {
   "dependencies": {
     "discord.js": "^14.9.0"
-  }
+  },
+  "name": "feedback",
+  "description": "TBc",
+  "version": "1.0.0",
+  "main": "feedback.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "feedback"
+  ],
+  "author": "slurmsmackenzie",
+  "license": "ISC"
 }
