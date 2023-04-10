@@ -3,7 +3,7 @@ ArtFX Discord Server Bot, Custom modules and bot functions
 
 <a name="readme-top"></a>
 
-[![Contributors][https://github.com/GreyDevSerga][https://github.com/GreyDevSergal]
+[![Contributors][contributors-shield][https://github.com/GreyDevSergal]
 
 [![Forks][forks-shield]][forks-url]
 [![Issues][issues-shield]][issues-url]
