@@ -1,9 +1,10 @@
-# AutoFX
+# AutoFX - Feedback
 ArtFX Discord Server Bot, Custom modules and bot functions
 
 <a name="readme-top"></a>
 
-[![Contributors][contributors-shield]][contributors-url]
+[![Contributors][https://github.com/GreyDevSergal][contributors-shield][https://github.com/GreyDevSergal]
+
 [![Forks][forks-shield]][forks-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
