@@ -1,5 +1,6 @@
 import json
 class Karma:
+
     def __init__(self, filename='karma.json'):
         self.filename = filename
         self.data = self.load()

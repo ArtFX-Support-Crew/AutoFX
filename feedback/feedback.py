@@ -14,6 +14,8 @@ intents.reactions = True
 intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+karma = Karma()
+valid_attachments = [".wav", ".mp3", ".flac"]
 
 # This code is creating a list called `required_words` by iterating over a list called `terms` and
 # appending each term in lowercase to the `required_words` list. This is likely being done to later
@@ -23,9 +25,14 @@ required_words = []
 for term in terms: 
     required_words.append(term.lower())
 
+# Some filtering configuration values for the module
+
 min_characters = 280
-karma = Karma()
 required_url_pattern = r'^(https?://)?(www\.)?(soundcloud|youtube|clyp\.it|drive|onedrive|dropbox|bandcamp|mixcloud)\.'
+
+
+# Commands for retreiving Karma point balance for themselves or another user
+# Plan to place this in an embed. 
 
 @bot.command()
 async def getkarma(ctx, user: discord.User = None):
@@ -35,13 +42,43 @@ async def getkarma(ctx, user: discord.User = None):
 
     user_id = str(user.id)
     user_karma = karma.get_users().get(user_id, 0)
+    print(f"Karma balance was retrieved via bot command for {user.mention}")
     await ctx.send(f"{user.mention} has {user_karma} feedback karma points!")
 
 @bot.command()
 async def mykarma(ctx):
     user_id = str(ctx.message.author.id)
     user_karma = karma.get_users().get(user_id, 0)
+    print(f"{ctx.message.author.mention} retrieved their own Karma balance")
     await ctx.send(f"{ctx.message.author.mention}, you have {user_karma} feedback karma points!")
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def add_extension(ctx, filetype: str):
+    if filetype is None: 
+        await ctx.send("Please add a file extension to add to the whitelist")
+        return
+    if filetype not in valid_attachments:
+        valid_attachments.append(filetype)
+        print(f"{ctx.message.author.mention} has added {filetype} to the whitelist")
+        await ctx.send(f"{filetype} has been added to the list of allowed extensions.")
+    else:
+        await ctx.send(f"{filetype} is already in the whitelist.")
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def remove_extension(ctx, filetype: str):
+    if filetype is None: 
+        await ctx.send("Please add a file extension to remove it from the whitelist")
+        return
+    if filetype in valid_attachments:
+        valid_attachments.remove(filetype)
+        print(f"{ctx.message.author.mention} has removed {filetype} from the whitelist")
+        await ctx.send(f"{filetype} has been removed from the list of allowed extensions.")
+    else:
+        await ctx.send(f"{filetype} is not on the whitelist.")
+
+
 
 @bot.event
 async def on_ready():
@@ -75,7 +112,6 @@ async def on_message(message):
 # requirements.
             if not re.search(required_url_pattern, parent_message.content, re.IGNORECASE):
                 print("Initial post does not contain a valid URL")
-                valid_attachments = [".wav", ".mp3", ".flac"]
                 has_valid_attachment = any(att.filename.lower().endswith(tuple(valid_attachments)) for att in parent_message.attachments)
                 if not has_valid_attachment:
                     print("Initial post does not contain a valid audio file attachment")
