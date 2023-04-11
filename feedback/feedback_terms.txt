@@ -211,9 +211,11 @@ Melodyo
 Meter
 Metronome
 Mic
+Mic
 MicrophoneMic
 MidrangeMids
 Mini-jack5
+Mix
 Mix
 Mixer
 Mixing
@@ -345,6 +347,7 @@ Shaker
 Shelf
 Shock
 Sibilance
+Sidechain
 Sidechain
 Signal
 Sine
