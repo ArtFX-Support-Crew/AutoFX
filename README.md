@@ -94,7 +94,7 @@ How Karma is awarded:
 
 ### Built With
 
-* [![Discord][Discord.py]][Discord-url]
+* <b><a href="https://discordpy.readthedocs.io/en/stable/">Discord.py</a></b>
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
