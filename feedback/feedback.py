@@ -1,5 +1,4 @@
 import discord
-import json
 from discord.ext import commands
 from config import token
 from terms import terms
@@ -52,6 +51,9 @@ async def mykarma(ctx):
     print(f"{ctx.message.author.mention} retrieved their own Karma balance")
     await ctx.send(f"{ctx.message.author.mention}, you have {user_karma} feedback karma points!")
 
+# Commands for setting allowed file types which are required to initiate a feedback request
+# Manage messages permission is required to use the commands. 
+
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def add_extension(ctx, filetype: str):
@@ -78,11 +80,13 @@ async def remove_extension(ctx, filetype: str):
     else:
         await ctx.send(f"{filetype} is not on the whitelist.")
 
-
+# Ready the bot
 
 @bot.event
 async def on_ready():
     print(f'{bot.user.name} is now enforcing feedback!')
+
+# Check if the message author is the bot itself, if not, continue to process messages 
 
 @bot.event
 async def on_message(message):
