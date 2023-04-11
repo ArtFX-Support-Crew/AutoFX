@@ -20,7 +20,6 @@ ArtFX Discord Server Bot, Custom modules and bot functions
 <h3 align="center">AutoFX Feedback - Enforce user feedback standards</h3>
 
   <p align="center">
-    project_description
     <br />
     <a href="https://github.com/ArtFX-Support-Crew/AutoFX"><strong>Explore the docs »</strong></a>
     <br />
