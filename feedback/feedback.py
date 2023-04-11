@@ -30,7 +30,7 @@ for term in terms:
 # Some filtering configuration values for the module
 
 min_characters = 280
-required_url_pattern = r'^(https?://)?(m.|soundcloud|youtube|clyp\.it|drive|onedrive|dropbox|bandcamp|mixcloud)\.'
+required_url_pattern = r'^(?=.*\b(soundcloud|youtube|clyp\.it|mixcloud|drive|onedrive|bandcamp|dropbox)\b).*'
 
 
 # Commands for retreiving Karma point balance for themselves or another user
@@ -41,7 +41,7 @@ def log_message(message):
     log_entry = f"{timestamp} - {message}"
     print(log_entry)
 
-    log_file = "bot_log.txt"
+    log_file = "feedback_log.txt"
     with open(log_file, 'a') as f:
         f.write(log_entry + "\n")
 
