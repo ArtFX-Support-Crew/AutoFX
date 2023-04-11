@@ -14,7 +14,7 @@ ArtFX Discord Server Bot, Custom modules and bot functions
 <br />
 <div align="center">
   <a href="https://github.com/ArtFX-Support-Crew/AutoFX">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+    <img src="images/AFX_bot.png" alt="Logo" width="80" height="80">
   </a>
 
 <h3 align="center">AutoFX Feedback - Enforce user feedback standards</h3>
