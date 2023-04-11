@@ -49,12 +49,12 @@ def log_message(message):
 @commands.has_permissions(manage_messages=True)
 async def send_log(ctx):
     try:
-        with open("bot_log.txt", "rb") as f:
-            await ctx.send("Sending bot log file...", file=discord.File(f, "bot_log.txt"))
+        with open("feedback_log.txt", "rb") as f:
+            await ctx.send("Sending bot log file...", file=discord.File(f, "feedback_log.txt"))
             log_message(f"{ctx.author} requested the bot log file.")
     except FileNotFoundError:
-        await ctx.send("The bot log file does not exist.")
-        log_message("The bot log file was not found.")
+        await ctx.send("The Feedback log file does not exist.")
+        log_message("The Feedback log file was not found.")
 
 @bot.command()
 async def getkarma(ctx, user: discord.User = None):
