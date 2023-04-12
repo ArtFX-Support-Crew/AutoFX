@@ -1,0 +1,21 @@
+2023-04-11 13:07:44 - AFXBot_dev is now enforcing feedback!
+2023-04-11 13:07:55 - Channel name: bot-dev
+2023-04-11 13:07:55 - Channel type: text
+2023-04-11 13:07:56 - Slurms Mackenzie#3272 requested the bot log file.
+2023-04-11 13:12:13 - Channel name: give me feedback
+2023-04-11 13:12:13 - Channel type: public_thread
+2023-04-11 13:12:13 - Processing message in forum channel
+2023-04-11 13:12:13 - Initial post by <@303925136145383424> does not contain a valid URL
+2023-04-11 13:12:13 - Initial post by <@303925136145383424> does not contain a valid audio file attachment
+2023-04-11 13:12:51 - Channel name: feedback req
+2023-04-11 13:12:51 - Channel type: public_thread
+2023-04-11 13:12:51 - Processing message in forum channel
+2023-04-11 13:12:51 - Initial post by <@303925136145383424> does not contain a valid URL
+2023-04-11 13:12:51 - Initial post by <@303925136145383424> does not contain a valid audio file attachment
+2023-04-11 13:13:17 - Channel name: test2
+2023-04-11 13:13:17 - Channel type: public_thread
+2023-04-11 13:13:17 - Processing message in forum channel
+2023-04-11 13:13:17 - Message author is the initial poster - no reward
+2023-04-11 19:56:30 - AFXBot_dev is now enforcing feedback!
+2023-04-11 19:57:05 - Minimum characters set to 280.
+2023-04-11 20:11:59 - AFXBot_dev is now enforcing feedback!

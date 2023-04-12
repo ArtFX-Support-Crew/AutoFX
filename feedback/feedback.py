@@ -19,9 +19,7 @@ karma = Karma()
 enforce_requirements = True
 valid_attachments = [".wav", ".mp3", ".flac"]
 
-# This code is creating a list called `required_words` by iterating over a list called `terms` and
-# appending each term in lowercase to the `required_words` list. This is likely being done to later
-# check if a message contains any of the required words in order to earn a "feedback karma point".
+# Create list of required words for posting 
 
 required_words = []
 for term in terms: 
@@ -32,8 +30,7 @@ for term in terms:
 min_characters = 280
 required_url_pattern = r'^(?=.*\b(soundcloud|youtube|clyp\.it|mixcloud|drive|onedrive|bandcamp|dropbox)\b).*'
 
-# Commands for retreiving Karma point balance for themselves or another user
-# Plan to place this in an embed. 
+# Message Logging 
 
 def log_message(message):
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -100,7 +97,7 @@ async def getkarma(ctx, user: discord.User = None):
     await ctx.send(f"{user.mention} has {user_karma} feedback karma points!")
     log_message(f"Karma balance was retrieved via bot command for {user.mention}")
 
-# Retreive Karma points for the user entering the command. 
+# Retrieve Karma points for the user entering the command. 
 
 @bot.command()
 async def mykarma(ctx):
@@ -176,7 +173,7 @@ async def on_message(message):
         print(f"Channel type: {message.channel.type}")
         log_message(f"Channel type: {message.channel.type}")
 
-    # Check if the message is in a forum channel with a specific ID
+    # Define the forum channel with a specific ID where the bot will be enforcing
 
     is_forum_channel = (
         message.channel.type == discord.ChannelType.public_thread
@@ -184,9 +181,7 @@ async def on_message(message):
         and message.channel.parent.id == 1046847054024020029
     )
 
-    # Check if the message is in a text channel with a specific ID 
-    # This code block is in place so that a person with appropriate permissions
-    # can send commands to the bot
+    # efine the text channel with a specific ID where the bot will listen for admin commands
 
     is_text_channel = (
         message.channel.type == discord.ChannelType.text
@@ -212,8 +207,8 @@ async def on_message(message):
 
     # This code block is checking if the initial post in a public thread contains a valid URL or a valid
     # audio file attachment. If it does not meet these requirements, the initial post is deleted and a
-    # message is sent to the author of the post notifying them that their post did not meet the
-    # requirements.
+    # message is sent to the author of the post notifying them
+
                 if not re.search(required_url_pattern, parent_message.content, re.IGNORECASE):
                     print(f"Initial post by {parent_message.author.mention} does not contain a valid URL")
                     log_message(f"Initial post by {parent_message.author.mention} does not contain a valid URL")
@@ -229,21 +224,19 @@ async def on_message(message):
                         return
 
 
-    # This code block is checking if the author of the current message is the same as the author of the
+    # Check if the author of the current message is the same as the author of the
     # initial post in a public thread. If the authors are the same, it means that the current message was
-    # posted by the same user who created the thread, and therefore no "feedback karma" should be awarded.
-    # The code prints a message saying that "no reward" will be given and returns without awarding any
-    # "feedback karma".
+    # posted by the same user who created the thread, and therefore no karma should be awarded.
+
 
                 if message.author == parent_message.author:
                     print("Message author is the initial poster - no reward")
                     log_message("Message author is the initial poster - no reward")
                     return
 
-    # This code block is checking if the length of the message content is greater than or equal to the
+    # Check if the length of the message content is greater than or equal to the
     # value of `min_characters`. If it is, the message meets the length requirement and the code continues
-    # to check for other criteria to award "feedback karma". If it is not, the message does not meet the
-    # length requirement and the code returns without awarding any "feedback karma"..
+    # to check for other criteria to award karma. 
 
                 if len(message.content) >= min_characters:
                     print("Message length requirement met")
@@ -253,10 +246,8 @@ async def on_message(message):
                     log_message("Message length requirement not met")
                     return
 
-    # This code block is checking if a message contains any of the required words in the `required_words`
-    # list. If it does, the code prints a message saying that "karma will be awarded". If it does not, the
-    # code prints a message saying that "karma will not be awarded" and returns without awarding any
-    # "feedback karma".
+    # Check if a message contains any of the required words in the `required_words`
+    # list. 
 
                 if any(word in message.content.lower() for word in required_words):
                     print("Message contains required words - karma will be awarded")
@@ -266,8 +257,7 @@ async def on_message(message):
                     log_message("Message does not contain required words - karma will not be awarded")
                     return
 
-    # This code block is awarding "feedback karma" to a user who has posted a message in a public thread
-    # that meets certain criteria.
+    # Award Karma
 
                 karma.add_user_to_thread(thread_id, user_id)
                 if karma.user_exists(user_id):

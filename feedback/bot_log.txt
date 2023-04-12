@@ -1,0 +1,10 @@
+2023-04-11 13:05:50 - AFXBot_dev is now enforcing feedback!
+2023-04-11 13:06:56 - Channel name: bot-dev
+2023-04-11 13:06:56 - Channel type: text
+2023-04-11 13:06:56 - Slurms Mackenzie#3272 requested the bot log file.
+2023-04-11 13:07:07 - Channel name: bot-dev
+2023-04-11 13:07:07 - Channel type: text
+2023-04-11 13:07:07 - Feedback requirements enforcement started!
+2023-04-11 13:07:16 - Channel name: bot-dev
+2023-04-11 13:07:16 - Channel type: text
+2023-04-11 13:07:16 - Slurms Mackenzie#3272 requested the bot log file.
