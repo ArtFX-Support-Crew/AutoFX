@@ -32,7 +32,6 @@ for term in terms:
 min_characters = 280
 required_url_pattern = r'^(?=.*\b(soundcloud|youtube|clyp\.it|mixcloud|drive|onedrive|bandcamp|dropbox)\b).*'
 
-
 # Commands for retreiving Karma point balance for themselves or another user
 # Plan to place this in an embed. 
 
@@ -45,6 +44,24 @@ def log_message(message):
     with open(log_file, 'a') as f:
         f.write(log_entry + "\n")
 
+# function clears the contents of a feedback log file, if it exists and logs the action
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def clear_log(ctx):
+    try:
+        with open('feedback_log.txt', mode='w') as f:
+            f.write('')
+            await ctx.send("Log file cleared.")
+            log_message("The Feedback log file has been cleared")
+    except FileNotFoundError: 
+        await ctx.send("The Feedback log file does not exist.")
+        log_message("The Feedback log file could not be cleared.")
+
+
+# Admin / Moderator command:: This commands sends a log file to the user who requested - 
+# it if it exists. The request is then logged
+
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def send_log(ctx):
@@ -56,6 +73,22 @@ async def send_log(ctx):
         await ctx.send("The Feedback log file does not exist.")
         log_message("The Feedback log file was not found.")
 
+# Admin / Moderator command: Change the number of required characters
+# required in a feedback post reply, to qualify for karma reward
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def set_minchars(ctx, minchars: None):
+    if minchars is None: 
+        await ctx.send("Please enter a valid number of characters")
+    else: 
+        min_characters == minchars
+        await ctx.send(f"The number feedback reply characters to qualify for karma reward has been set to {minchars}.")
+        log_message(f"Minimum characters set to {minchars}.")
+
+
+# Retrieve the Karma points from karma.json for a given user.
+
 @bot.command()
 async def getkarma(ctx, user: discord.User = None):
     if user is None:
@@ -64,20 +97,20 @@ async def getkarma(ctx, user: discord.User = None):
 
     user_id = str(user.id)
     user_karma = karma.get_users().get(user_id, 0)
-    print(f"Karma balance was retrieved via bot command for {user.mention}")
-    log_message(f"Karma balance was retrieved via bot command for {user.mention}")
     await ctx.send(f"{user.mention} has {user_karma} feedback karma points!")
+    log_message(f"Karma balance was retrieved via bot command for {user.mention}")
+
+# Retreive Karma points for the user entering the command. 
 
 @bot.command()
 async def mykarma(ctx):
     user_id = str(ctx.message.author.id)
     user_karma = karma.get_users().get(user_id, 0)
-    print(f"{ctx.message.author.mention} retrieved their own Karma balance")
-    log_message(f"{ctx.message.author.mention} retrieved their own Karma balance")
     await ctx.send(f"{ctx.message.author.mention}, you have {user_karma} feedback karma points!")
+    log_message(f"{ctx.message.author.mention} retrieved their own Karma balance")
 
-# Commands for setting allowed file types which are required to initiate a feedback request
-# Manage messages permission is required to use the commands. 
+# Admin / Moderator command: 
+# Command for setting allowed file types which are required to initiate a feedback request
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
@@ -87,9 +120,8 @@ async def add_extension(ctx, filetype: str):
         return
     if filetype not in valid_attachments:
         valid_attachments.append(filetype)
-        print(f"{ctx.message.author.mention} has added {filetype} to the whitelist")
-        log_message(f"{ctx.message.author.mention} has added {filetype} to the whitelist")
         await ctx.send(f"{filetype} has been added to the list of allowed extensions.")
+        log_message(f"{ctx.message.author.mention} has added {filetype} to the whitelist")
     else:
         await ctx.send(f"{filetype} is already in the whitelist.")
 
@@ -101,14 +133,13 @@ async def remove_extension(ctx, filetype: str):
         return
     if filetype in valid_attachments:
         valid_attachments.remove(filetype)
-        print(f"{ctx.message.author.mention} has removed {filetype} from the whitelist")
         await ctx.send(f"{filetype} has been removed from the list of allowed extensions.")
         log_message(f"{ctx.message.author.mention} has removed {filetype} from the whitelist")
     else:
         await ctx.send(f"{filetype} is not on the whitelist.")
 
-# These are two Discord bot commands that start and stop the enforcement of feedback requirements,
-# respectively, and require administrator permissions to execute.
+# Admin / Moderator command: These are two Discord bot commands that start and stop 
+# the enforcement of feedback requirements,
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
@@ -139,11 +170,11 @@ async def on_ready():
 async def on_message(message):
     if message.author == bot.user:
         return
-
-    print(f"Channel name: {message.channel.name}")
-    log_message(f"Channel name: {message.channel.name}")
-    print(f"Channel type: {message.channel.type}")
-    log_message(f"Channel type: {message.channel.type}")
+    if message.channel.type == discord.ChannelType.public_thread:
+        print(f"Channel name: {message.channel.name}")
+        log_message(f"Channel name: {message.channel.name}")
+        print(f"Channel type: {message.channel.type}")
+        log_message(f"Channel type: {message.channel.type}")
 
     # Check if the message is in a forum channel with a specific ID
 
