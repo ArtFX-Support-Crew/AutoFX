@@ -61,7 +61,7 @@ async def clear_log(ctx):
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def send_log(ctx):
+async def get_log(ctx):
     try:
         with open("feedback_log.txt", "rb") as f:
             await ctx.send("Sending bot log file...", file=discord.File(f, "feedback_log.txt"))
@@ -87,7 +87,7 @@ async def set_minchars(ctx, minchars: None):
 # Retrieve the Karma points from karma.json for a given user.
 
 @bot.command()
-async def getkarma(ctx, user: discord.User = None):
+async def get_karma(ctx, user: discord.User = None):
     if user is None:
         await ctx.send("Please mention a user to check their karma points.")
         return
@@ -100,7 +100,7 @@ async def getkarma(ctx, user: discord.User = None):
 # Retrieve Karma points for the user entering the command. 
 
 @bot.command()
-async def mykarma(ctx):
+async def my_karma(ctx):
     user_id = str(ctx.message.author.id)
     user_karma = karma.get_users().get(user_id, 0)
     await ctx.send(f"{ctx.message.author.mention}, you have {user_karma} feedback karma points!")
@@ -181,7 +181,7 @@ async def on_message(message):
         and message.channel.parent.id == 1046847054024020029
     )
 
-    # efine the text channel with a specific ID where the bot will listen for admin commands
+    # Define the text channel with a specific ID where the bot will listen for admin commands
 
     is_text_channel = (
         message.channel.type == discord.ChannelType.text
@@ -205,7 +205,7 @@ async def on_message(message):
                     parent_message = msg
                     break
 
-    # This code block is checking if the initial post in a public thread contains a valid URL or a valid
+    # Check if the initial post in a public thread contains a valid URL or a valid
     # audio file attachment. If it does not meet these requirements, the initial post is deleted and a
     # message is sent to the author of the post notifying them
 
