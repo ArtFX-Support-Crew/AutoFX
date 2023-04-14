@@ -75,13 +75,16 @@ async def get_log(ctx):
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def set_minchars(ctx, minchars: None):
+async def set_minchars(ctx, minchars: int):
     if minchars is None: 
         await ctx.send("Please enter a valid number of characters")
-    else: 
-        min_characters == minchars
+        return 
+    try: 
+        min_characters = int(minchars)
         await ctx.send(f"The number feedback reply characters to qualify for karma reward has been set to {minchars}.")
         log_message(f"Minimum characters set to {minchars}.")
+    except ValueError: 
+        await ctx.send("Please enter a valid integer for number of characters")
 
 
 # Retrieve the Karma points from karma.json for a given user.
@@ -104,7 +107,7 @@ async def my_karma(ctx):
     user_id = str(ctx.message.author.id)
     user_karma = karma.get_users().get(user_id, 0)
     await ctx.send(f"{ctx.message.author.mention}, you have {user_karma} feedback karma points!")
-    log_message(f"{ctx.message.author.mention} retrieved their own Karma balance")
+    log_message(f"{ctx.author} retrieved their own Karma balance")
 
 # Admin / Moderator command: 
 # Command for setting allowed file types which are required to initiate a feedback request
@@ -118,7 +121,7 @@ async def add_extension(ctx, filetype: str):
     if filetype not in valid_attachments:
         valid_attachments.append(filetype)
         await ctx.send(f"{filetype} has been added to the list of allowed extensions.")
-        log_message(f"{ctx.message.author.mention} has added {filetype} to the whitelist")
+        log_message(f"{ctx.author} has added {filetype} to the whitelist")
     else:
         await ctx.send(f"{filetype} is already in the whitelist.")
 
@@ -131,9 +134,52 @@ async def remove_extension(ctx, filetype: str):
     if filetype in valid_attachments:
         valid_attachments.remove(filetype)
         await ctx.send(f"{filetype} has been removed from the list of allowed extensions.")
-        log_message(f"{ctx.message.author.mention} has removed {filetype} from the whitelist")
+        log_message(f"{ctx.author} has removed {filetype} from the whitelist")
     else:
         await ctx.send(f"{filetype} is not on the whitelist.")
+
+# Get leaderboard for Karma points
+
+@bot.command()
+async def feedback_lb(ctx):
+    users = karma.get_users()
+
+    if not users:
+        await ctx.send("No users found!")
+        return
+
+    sorted_users = sorted(users.items(), key=lambda x: x[1], reverse=True)
+
+    leaderboard_text = "Leaderboard:\n\n"
+
+    for i, (user_id, karma_points) in enumerate(sorted_users[:10], start=1):
+        user = await bot.fetch_user(user_id)
+        leaderboard_text += f"{i}. {user.name}#{user.discriminator}: {karma_points} points\n"
+
+    embed = discord.Embed(title="Feedback Karma Leaderboard", description=leaderboard_text, color=0x00ff00)
+    await ctx.send(embed=embed)
+    log_message(f"{ctx.author} retrieved the Feedback Leaderboard")
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def feedback_commands(ctx):
+
+    commands_text = "Commands:\n\n"
+
+    commands_text += f"**!clear_log**: Clear the feedback bot log. \n"
+    commands_text += f"**!get_log**: Get the feedback bot log. \n"
+    commands_text += f"**!set_minchars** *<int>*: Set the minimum number of characters in a reply to make it eligible for karma rewards. \n"
+    commands_text += f"**!get_karma** *<user>*: Retrieve the Karma point balance for a specific user. \n"
+    commands_text += f"**!my_karma**: Retrieve the Karma point balance for user sending the command. \n"
+    commands_text += f"**!add_extension** *<extension>*: Add an extension to the list of allowed extensions in initial feedback posts. \n"
+    commands_text += f"**!remove_extension** *<extension>*: Remove an extension from the list of allowed extensions in initial feedback posts. \n"
+    commands_text += f"**!feedback_lb**: Show a leaderboard of Feedback Karma points. \n"
+    commands_text += f"**!start_enforce**: Start Enforcing feedback requirements and awarding Karma. \n"
+    commands_text += f"**!stop_enforce**: Stop Enforcing feedback requirements and awarding Karma. \n"
+    
+    embed = discord.Embed(title="Feedback Bot Commands", description=commands_text, color=0x00ff00)
+    await ctx.send(embed=embed)
+    log_message(f"{ctx.author} retrieved the Feedback Command list")
 
 # Admin / Moderator command: These are two Discord bot commands that start and stop 
 # the enforcement of feedback requirements,
@@ -144,7 +190,7 @@ async def start_enforce(ctx):
     global enforce_requirements
     enforce_requirements = True
     await ctx.send("Feedback requirements enforcement started!")
-    log_message("Feedback requirements enforcement started!")
+    log_message(f"Feedback requirements enforcement started by {ctx.author}.")
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
@@ -152,7 +198,7 @@ async def stop_enforce(ctx):
     global enforce_requirements
     enforce_requirements = False
     await ctx.send("Feedback requirements enforcement stopped!")
-    log_message("Feedback requirements enforcement stopped!")
+    log_message(f"Feedback requirements enforcement stopped by {ctx.author}.")
 
 # Ready the bot
 
@@ -270,7 +316,12 @@ async def on_message(message):
                 await message.channel.send(f"{message.author.mention} has earned 1 feedback Karma!")
                 log_message(f"{message.author.mention} has earned 1 feedback Karma!")
         
+    
+    # In Text channels (Restricted by Channel ID) process bot commands  
+
     if is_text_channel:   
             await bot.process_commands(message)
+
+# Run the bot
 
 bot.run(token)
