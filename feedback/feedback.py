@@ -6,6 +6,7 @@ import re
 import os
 import datetime
 from karma import Karma 
+import logging
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -28,14 +29,14 @@ for term in terms:
 # Some filtering configuration values for the module
 
 min_characters = 280
-required_url_pattern = r'^(?=.*\b(soundcloud|youtube|clyp\.it|mixcloud|drive|onedrive|bandcamp|dropbox)\b).*'
+required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|(?:www\.)?dropbox\.com|(?:www\.)?drive\.google\.com|clyp\.it)/'
 
 # Message Logging 
 
 def log_message(message):
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = f"{timestamp} - {message}"
-    print(log_entry)
+    logging.info(log_entry)
 
     log_file = "feedback_log.txt"
     with open(log_file, 'a') as f:
@@ -255,19 +256,22 @@ async def on_message(message):
     # audio file attachment. If it does not meet these requirements, the initial post is deleted and a
     # message is sent to the author of the post notifying them
 
-                if not re.search(required_url_pattern, parent_message.content, re.IGNORECASE):
-                    print(f"Initial post by {parent_message.author.mention} does not contain a valid URL")
-                    log_message(f"Initial post by {parent_message.author.mention} does not contain a valid URL")
-                    has_valid_attachment = any(att.filename.lower().endswith(tuple(valid_attachments)) for att in parent_message.attachments)
-                    if not has_valid_attachment:
-                        print(f"Initial post by {parent_message.author.mention} does not contain a valid audio file attachment")
-                        log_message(f"Initial post by {parent_message.author.mention} does not contain a valid audio file attachment")
-                        # Delete the thread
-                        await message.channel.delete()
-                        # Send a DM to the user
-                        dm_channel = await parent_message.author.create_dm()
-                        await dm_channel.send(f"{parent_message.author.mention}, your post in the thread did not meet the requirements (URL or audio file attachment). The thread has been deleted.")
-                        return
+                url_match = re.search(required_url_pattern, parent_message.content, re.IGNORECASE)
+                has_valid_attachment = False
+                if url_match is not None:
+                    has_valid_attachment = True
+                    log_message(f"Found URL: {url_match.group(0)}")
+                elif any(att.filename.lower().endswith(tuple(valid_attachments)) for att in parent_message.attachments):
+                    has_valid_attachment = True
+                else:
+                    print(f"Initial post by {parent_message.author.mention} does not contain a valid URL or audio file attachment")
+                    log_message(f"Initial post by {parent_message.author.mention} does not contain a valid URL or audio file attachment")
+                    # Delete the thread
+                    await message.channel.delete()
+                    # Send a DM to the user
+                    dm_channel = await parent_message.author.create_dm()
+                    await dm_channel.send(f"{parent_message.author.mention}, your post in the thread did not meet the requirements (URL or audio file attachment). The thread has been deleted.")
+                    return
 
 
     # Check if the author of the current message is the same as the author of the
@@ -310,6 +314,7 @@ async def on_message(message):
                     karma.increment_user_karma(user_id)
                 else:
                     karma.add_user(user_id)
+
 
                 karma.save()
                 await message.add_reaction('✅')
