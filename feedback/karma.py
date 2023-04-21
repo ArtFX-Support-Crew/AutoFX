@@ -1,38 +1,23 @@
 import json
+
 class Karma:
-
-    def __init__(self, filename='karma.json'):
-        self.filename = filename
-        self.data = self.load()
-
-    def load(self):
-        with open(self.filename, 'r') as f:
-            return json.load(f)
+    def __init__(self, file_name="karma.json"):
+        self.file_name = file_name
+        try:
+            with open(file_name, "r") as f:
+                self.users = json.load(f)
+        except FileNotFoundError:
+            self.users = {}
 
     def save(self):
-        with open(self.filename, 'w') as f:
-            json.dump(self.data, f, indent=4)
+        with open(self.file_name, "w") as f:
+            json.dump(self.users, f, indent=4)
 
-    def get_threads(self):
-        return self.data['threads']
+    def increment_user_karma(self, user_id, amount):
+        if user_id not in self.users:
+            self.users[user_id] = 0
+        self.users[user_id] += amount
+        self.save()
 
     def get_users(self):
-        return self.data['users']
-
-    def add_thread(self, thread_id):
-        self.data['threads'][thread_id] = []
-
-    def add_user(self, user_id):
-        self.data['users'][user_id] = 1
-
-    def increment_user_karma(self, user_id):
-        self.data['users'][user_id] += 1
-
-    def add_user_to_thread(self, thread_id, user_id):
-        self.data['threads'][thread_id].append(user_id)
-
-    def user_in_thread(self, thread_id, user_id):
-        return user_id in self.data['threads'][thread_id]
-
-    def user_exists(self, user_id):
-        return user_id in self.data['users']
+        return self.users

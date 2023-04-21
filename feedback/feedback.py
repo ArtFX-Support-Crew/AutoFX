@@ -4,6 +4,8 @@ from config import token
 from terms import terms
 import re
 import datetime
+from feedback_points import Points 
+from feedback_points import required_points
 from karma import Karma 
 import logging
 
@@ -15,9 +17,10 @@ intents.reactions = True
 intents.members = True
 
 bot = commands.Bot(command_prefix='/', intents=intents)
+points = Points()
 karma = Karma()
 enforce_requirements = True
-point_requirements = False
+point_requirements = True
 valid_attachments = [".wav", ".mp3", ".flac"]
 
 # Create list of required words for posting 
@@ -72,7 +75,7 @@ async def clear_log(ctx):
 # Admin / Moderator command:: This commands sends a log file to the user who requested - 
 # it if it exists. The request is then logged
 
-@bot.command()
+@bot.command(name="get_log", help="Get the Feeback Bot Log.")
 @commands.has_permissions(manage_messages=True)
 async def get_log(ctx):
     try:
@@ -83,188 +86,167 @@ async def get_log(ctx):
         await ctx.send("The Feedback log file does not exist.")
         log_message("The Feedback log file was not found.")
 
+@bot.command(name="grant", help="Grant a specific number of Feedback Points to a user.")
+@commands.has_permissions(manage_messages=True)
+async def grant_points(ctx, user: discord.User, points_to_grant: int):
+    if user is None or points_to_grant is None:
+        await ctx.send("Please mention a user and provide the number of points to grant.")
+        return
+
+    user_id = str(user.id)
+    points.grant_points(user_id, points_to_grant)
+    new_points = points.get_users().get(user_id, 0)
+
+    await ctx.send(f"{user.mention} has been granted {points_to_grant} Feedback Points! Their new balance is {new_points}.")
+    log_message(f"{ctx.author} granted {points_to_grant} Feedback Points to {user.mention}.")
+
+@bot.command(name="requiredpoints", help="Set the required number of Feedback Points for a user to initiate a new Feedback Request.")
+@commands.has_permissions(manage_messages=True)
+async def requiredpoints(ctx, new_required_points: int):
+    global required_points
+    if new_required_points is None: 
+        await ctx.send("The required points value must be a valid number.")
+        return
+    if new_required_points < 0:
+        await ctx.send("The required points value must be at least 0.")
+    else:
+        required_points = new_required_points
+        await ctx.send(f"Required points value has been set to {required_points}.")
+
+
 # Admin / Moderator command: Change the number of required characters
-# required in a feedback post reply, to qualify for karma reward
+# required in a feedback post reply, to qualify for Feedback Point reward
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def set_minchars(ctx, minchars: int):
-    if minchars is None: 
+async def minchars(ctx, chars: int):
+    global min_characters
+    if chars is None: 
         await ctx.send("Please enter a valid number of characters")
         return 
     try: 
-        int(minchars)
-        await ctx.send(f"The number feedback reply characters to qualify for karma reward has been set to {minchars}.")
-        log_message(f"Minimum characters set to {minchars}.")
+        min_characters = int(chars)
+        await ctx.send(f"The number feedback reply characters to qualify for Feedback Points reward has been set to {min_characters}.")
+        log_message(f"Minimum characters set to {min_characters}.")
     except ValueError: 
         await ctx.send("Please enter a valid integer for number of characters")
 
 
-# Retrieve the Karma points from karma.json for a given user.
+# Retrieve the Feedback points from feedback_points.json for a given user.
 
 @bot.command()
-async def get_karma(ctx, user: discord.User = None):
+async def getpoints(ctx, user: discord.User = None):
     if user is None:
-        await ctx.send("Please mention a user to check their karma points.")
+        await ctx.send("Please mention a user to check their Feedback Points.")
         return
-
     user_id = str(user.id)
-    user_karma = karma.get_users().get(user_id, 0)
-    await ctx.send(f"{user.mention} has {user_karma} feedback karma points!")
-    log_message(f"Karma balance was retrieved via bot command for {user.mention}")
-
-# Retrieve Karma points for the user entering the command. 
-
-@bot.command()
-async def my_karma(ctx):
-    user_id = str(ctx.message.author.id)
-    user_karma = karma.get_users().get(user_id, 0)
-    await ctx.send(f"{ctx.message.author.mention}, you have {user_karma} feedback karma points!")
-    log_message(f"{ctx.author} retrieved their own Karma balance")
+    user_points = points.get_users().get(user_id, 0)
+    await ctx.send(f"{user.mention} has {user_points} Feedback Points!")
+    log_message(f"Feedback Points balance was retrieved via bot command for {user.mention}")
 
 # Admin / Moderator command: 
-# Command for setting allowed file types which are required to initiate a feedback request
+# Command for setting allowed file types which are required to initiate a Feedback Request.
 
-@bot.command()
+@bot.command(name="extension", help="Add/Remove an extension from the allowed extensions list.")
 @commands.has_permissions(manage_messages=True)
-async def add_extension(ctx, filetype: str):
-    if filetype is None: 
-        await ctx.send("Please add a file extension to add to the whitelist")
+async def extension(ctx, action: str, filetype: str):
+    """Add/Remove an extension from the allowed extensions list.
+
+    Args:
+        action (str): add / remove
+        filetype (str examples): .mp3, .wav, .ogg
+    """
+    if action is None or filetype is None:
+        await ctx.send("Please provide an action (add/remove) and a file extension.")
         return
-    if filetype not in valid_attachments:
-        valid_attachments.append(filetype)
-        await ctx.send(f"{filetype} has been added to the list of allowed extensions.")
-        log_message(f"{ctx.author} has added {filetype} to the whitelist")
+
+    action = action.lower()
+
+    if action == "add":
+        if filetype not in valid_attachments:
+            valid_attachments.append(filetype)
+            await ctx.send(f"{filetype} has been added to the list of allowed extensions.")
+            log_message(f"{ctx.author} has added {filetype} to the whitelist")
+        else:
+            await ctx.send(f"{filetype} is already in the whitelist.")
+    elif action == "remove":
+        if filetype in valid_attachments:
+            valid_attachments.remove(filetype)
+            await ctx.send(f"{filetype} has been removed from the list of allowed extensions.")
+            log_message(f"{ctx.author} has removed {filetype} from the whitelist")
+        else:
+            await ctx.send(f"{filetype} is not on the whitelist.")
     else:
-        await ctx.send(f"{filetype} is already in the whitelist.")
+        await ctx.send("Invalid action. Usage: /extension <add/remove> <filetype>")
 
-@bot.command()
+
+# Admin / Moderator command: Toggle the enforcement for initial post requirements. Setting to Enabled
+# will enforce a check that a user has minimum feedback points to post a new request. Subsequently, if a Feedback
+# Request is made, Feedback points are deducted from their balance tracked in feedback_points.json
+
+@bot.command(name="enforce", help="Enable or Disable Feedback Enforcement")
 @commands.has_permissions(manage_messages=True)
-async def remove_extension(ctx, filetype: str):
-    if filetype is None: 
-        await ctx.send("Please add a file extension to remove it from the whitelist")
-        return
-    if filetype in valid_attachments:
-        valid_attachments.remove(filetype)
-        await ctx.send(f"{filetype} has been removed from the list of allowed extensions.")
-        log_message(f"{ctx.author} has removed {filetype} from the whitelist")
-    else:
-        await ctx.send(f"{filetype} is not on the whitelist.")
+async def enforce(ctx, status: str):
+    """Enable or Disable Feedback Enforcement
 
-# Get leaderboard for Karma points
-
-@bot.command()
-async def feedback_lb(ctx):
-    users = karma.get_users()
-
-    if not users:
-        await ctx.send("No users found!")
-        return
-
-    sorted_users = sorted(users.items(), key=lambda x: x[1], reverse=True)
-
-    leaderboard_text = "Leaderboard:\n\n"
-
-    for i, (user_id, karma_points) in enumerate(sorted_users[:10], start=1):
-        user = await bot.fetch_user(user_id)
-        leaderboard_text += f"{i}. {user.name}#{user.discriminator}: {karma_points} points\n"
-
-    embed = discord.Embed(title="Feedback Karma Leaderboard", description=leaderboard_text, color=0x00ff00)
-    await ctx.send(embed=embed)
-    log_message(f"{ctx.author} retrieved the Feedback Leaderboard")
-
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def feedback_commands(ctx):
-
-    commands_text = "Commands:\n\n"
-
-    commands_text += "**!clear_log**: Clear the feedback bot log. \n"
-    commands_text += "**!get_log**: Get the feedback bot log. \n"
-    commands_text += "**!set_minchars** *<int>*: Set the minimum number of characters in a reply to make it eligible for karma rewards. \n"
-    commands_text += "**!get_karma** *<user>*: Retrieve the Karma point balance for a specific user. \n"
-    commands_text += "**!my_karma**: Retrieve the Karma point balance for user sending the command. \n"
-    commands_text += "**!add_extension** *<extension>*: Add an extension to the list of allowed extensions in initial feedback posts. \n"
-    commands_text += "**!remove_extension** *<extension>*: Remove an extension from the list of allowed extensions in initial feedback posts. \n"
-    commands_text += "**!add_required_word** *<word>*: Add a word to the feedback filter. \n"
-    commands_text += "**!remove_required_word** *<word>*: Remove a word from the feedback filter. \n"
-    commands_text += "**!feedback_lb**: Show a leaderboard of Feedback Karma points. \n"
-    commands_text += "**!start_enforce**: Start Enforcing feedback requirements and awarding Karma. \n"
-    commands_text += "**!stop_enforce**: Stop Enforcing feedback requirements and awarding Karma. \n"
-    commands_text += "**!toggle_point_requirements**: Toggle enforcement of initial feedback request Karma requirements. \n"
-    
-    embed = discord.Embed(title="Feedback Bot Commands", description=commands_text, color=0x00ff00)
-    await ctx.send(embed=embed)
-    log_message(f"{ctx.author} retrieved the Feedback Command list")
-
-# Admin / Moderator command: These are two Discord bot commands that start and stop 
-# the enforcement of feedback requirements for URL or audio attachment in initial posts
-
-@bot.command(name="start_enforce", help="Starts feedback post enforcement for attachment and URL standards.")
-@commands.has_permissions(manage_messages=True)
-async def start_enforce(ctx):
+    Args:
+        status (str): enable / disable
+    """
     global enforce_requirements
-    enforce_requirements = True
-    await ctx.send("Feedback requirements enforcement started!")
-    log_message(f"Feedback requirements enforcement started by {ctx.author}.")
-
-@bot.command(name="stop_enforce", help="Stops feedback post enforcement for attachment and URL standards.")
-@commands.has_permissions(manage_messages=True)
-async def stop_enforce(ctx):
-    global enforce_requirements
-    enforce_requirements = False
-    await ctx.send("Feedback requirements enforcement stopped!")
-    log_message(f"Feedback requirements enforcement stopped by {ctx.author}.")
-
-# Admin / Moderator command: Toggle the requirement for initial feedback post karma requirements. Setting to Enabled
-# will enforce a check that a user has minimum feedback points to post a new request. Subsequently, if a feedback
-# post is made, 1 Karma point is deducted from their balance tracked in karma.json
-
-@bot.command(name="toggle_point_requirements", help="Toggles the feedback point requirement for creating new feedback requests.")
-@commands.has_permissions(manage_channels=True)
-async def toggle_point_requirements(ctx):
-    global point_requirements
-    point_requirements = not point_requirements
-    status = "enabled" if point_requirements else "disabled"
-    await ctx.send(f"Feedback point requirement is now {status}.")
-
-# Admin / Moderator command: Add or remove required words from the filter list. 
-
-@bot.command(name="add_required_word", help="Add a required word to the feedback word filter.")
-@commands.has_permissions(manage_messages=True)
-async def add_required_word(ctx, word: str):
-    if word is None:
-        await ctx.send("Please enter a word to add to the feedback word filter.")
+    status = status.lower()
+    if status is None or (status != "enable" and status != "disable"):
+        await ctx.send(f"Please enter a valid enforcement status.")
         return
-
-    if word.lower() not in required_words:
-        required_words.append(word.lower())
-        await ctx.send(f"{word} has been added to the feedback word filter.")
-        log_message(f"{ctx.author} added {word} to feedback word filter.")
+    if status == 'enable':
+        if not enforce_requirements:
+            enforce_requirements = True
+            await ctx.send("Feedback Request enforcement enabled.")
+        else:
+            await ctx.send("Feedback Request enforcement is already enabled.")
+    elif status == 'disable':
+        if enforce_requirements:
+            enforce_requirements = False
+            await ctx.send("Feedback Request enforcement disabled.")
+        else:
+            await ctx.send("Feedback Request enforcement is already disabled.")
     else:
-        await ctx.send(f"{word} is already in the feedback word filter.")
+        await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
 
-@bot.command(name="remove_required_word", help="Remove a required word from the feedback word filter.")
+
+@bot.command(name="keywords", help="Add or remove a required keyword from the Feedback word filter.")
 @commands.has_permissions(manage_messages=True)
-async def remove_required_word(ctx, word: str):
+async def keywords(ctx, action: str, word: str):
+    """ Admin / Moderator command: Add or remove a required keyword from the Feedback word filter. 
+    Args:
+        action (str): add / remove
+        keyword (str examples): compression, mix, sidechain
+    """
+    action = action.lower()
     if word is None:
-        await ctx.send("Please enter a word to remove from the feedback word filter.")
+        await ctx.send("Please enter a word to add or remove from the Feedback word filter.")
         return
-
-    if word.lower() in required_words:
-        required_words.remove(word.lower())
-        await ctx.send(f"{word} has been removed from the feedback word filter.")
-        log_message(f"{ctx.author} removed {word} from the feedback word filter.")
+    if action == 'add':
+        if word.lower() not in required_words:
+            required_words.append(word.lower())
+            await ctx.send(f"{word} has been added to the Feedback word filter.")
+            log_message(f"{ctx.author} added {word} to Feedback word filter.")
+        else:
+            await ctx.send(f"{word} is already in the Feedback word filter.")
+    elif action == 'remove':
+        if word.lower() in required_words:
+            required_words.remove(word.lower())
+            await ctx.send(f"{word} has been removed from the Feedback word filter.")
+            log_message(f"{ctx.author} removed {word} from Feedback word filter.")
+        else:
+            await ctx.send(f"{word} is not in the Feedback word filter.")
     else:
-        await ctx.send(f"{word} is not in the feedback word filter.")
-
+        await ctx.send("Invalid action. Usage: !keyword <add/remove> <word>")
 
 # Ready the bot
-
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} is now enforcing feedback!')
-    log_message(f'{bot.user.name} is now enforcing feedback!')
+    print(f'{bot.user.name} is now enforcing Feedback!')
+    log_message(f'{bot.user.name} is now enforcing Feedback!')
 
 # Check if the message author is the bot itself, if not, continue to process messages 
 
@@ -278,15 +260,11 @@ async def on_message(message):
         print(f"Channel type: {message.channel.type}")
         log_message(f"Channel type: {message.channel.type}")
 
-    # Define the forum channel with a specific ID where the bot will be enforcing
-
     is_forum_channel = (
         message.channel.type == discord.ChannelType.public_thread
         and message.channel.parent
         and message.channel.parent.id == 1046847054024020029
     )
-
-    # Define the text channel with a specific ID where the bot will listen for admin commands
 
     is_text_channel = (
         message.channel.type == discord.ChannelType.text
@@ -302,91 +280,84 @@ async def on_message(message):
             thread_id = str(message.channel.id)
             user_id = str(message.author.id)
 
-            if thread_id not in karma.get_threads():
-                karma.add_thread(thread_id)
+            if thread_id not in points.get_threads():
+                points.add_thread(thread_id)
 
-            if not karma.user_in_thread(thread_id, user_id):
+            if not points.user_in_thread(thread_id, user_id):
                 async for msg in message.channel.history(oldest_first=True):
                     parent_message = msg
                     break
 
-                # Check if the initial post in a public thread contains a valid URL or a valid
-                # audio file attachment. If it does not meet these requirements, the initial post is deleted and a
-                # message is sent to the author of the post notifying them
+                is_initial_post = message.created_at == parent_message.created_at
 
-                url_match = re.search(required_url_pattern, parent_message.content, re.IGNORECASE)
-                if url_match is not None:
-                    log_message(f"Message has a valid url! Found URL: {url_match.group(0)}")
-                elif any(att.filename.lower().endswith(tuple(valid_attachments)) for att in parent_message.attachments):
-                    log_message(f"Message has a valid attachment! {parent_message.attachments}")
-                else:
-                    print(f"Initial post by {parent_message.author.mention} does not contain a valid URL or audio file attachment")
-                    log_message(f"Initial post by {parent_message.author.mention} does not contain a valid URL or audio file attachment")
-                    # Delete the thread
-                    await message.channel.delete()
-                    log_message(f"Feedback post by {parent_message.author.mention} has been deleted.")
-                    # Send a DM to the user
-                    dm_channel = await parent_message.author.create_dm()
-                    await dm_channel.send(f"{parent_message.author.mention}, your post in the thread did not meet the requirements (URL or audio file attachment). The thread has been deleted.")
-                    log_message(f"User {parent_message.author.mention} has been informed via DM that their post did not meet the requirements.")
-                    return
+                if is_initial_post:
+                    print("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
+                    log_message("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
 
+                    # Check if the message contains a valid URL or a valid attachment
+                    contains_valid_url = bool(re.search(required_url_pattern, message.content))
+                    contains_valid_attachment = any([attachment.filename.endswith(tuple(valid_attachments)) for attachment in message.attachments])
 
-                # Point Requirements: Check if the author of the current message is the same as the author of the
-                # initial post in a public thread. If the authors are the same, it means that the current message was
-                # posted by the same user who created the thread, and therefore no karma should be awarded.
-
-
-                if message.author == parent_message.author:
-                    print("Message author is the initial poster - no reward")
-                    log_message("Message author is the initial poster - no reward")
+                    # If the initial post does not contain a valid URL or attachment, delete the channel and inform the user
+                    if not (contains_valid_url or contains_valid_attachment):
+                        await message.channel.delete()
+                        log_message(f"User {message.author.id} Feedback Request was deleted due to not containing a valid URL or audio attachment.")
+                        response = (
+                            f"{message.author.mention}, your post has been removed. To create a Feedback Request, you need to include a valid URL or audio attachment: {valid_attachments}\n\n"
+                        )
+                        dm_channel = await parent_message.author.create_dm()
+                        await dm_channel.send(response)
+                        return
 
                     if point_requirements:
-                        user_karma = karma.get_users().get(str(message.author.id), 0)
-                        if user_karma < 1:
-                            await message.delete()
-                            log_message(f"User {message.author.id} Feedback request was deleted due to insufficient Karma points.")
+                        user_points = points.get_users().get(str(message.author.id), 0)
+                        if user_points < required_points:
+                            await message.channel.delete()
+                            log_message(f"User {message.author.id} Feedback Request was deleted due to insufficient Feedback Points.")
                             response = (
-                                f"{message.author.mention}, your post has been removed. You need at least 1 karma points to create a feedback request. Your current karma points: {user_karma}\n\n"
-                                "If you believe this was an error, please contact a moderator."
+                                f"{message.author.mention}, your Feedback Request has been removed. You need at least {required_points} Feedback Points to create a Feedback Request. Your current Feedback Points: {user_points}\n\n"
+                                "To earn Feedback Points, provide some feedback for other users."
                             )
                             dm_channel = await parent_message.author.create_dm()
                             await dm_channel.send(response)
                         else:
-                            # Deduct one karma point if user_karma is sufficient
-                            karma.increment_user_karma(str(message.author.id), -1)
-                            updated_user_karma = karma.get_users().get(str(message.author.id), 0)
-                            log_message(f"User {parent_message.author.mention} has made a new Feedback request and 1 karma point has been deducted from their balance.")
+                            log_message(f"User {message.author.id} Has sufficient Feedback Points and Post meets requirements..")
+                            points.increment_user_points(str(message.author.id), -1)
+                            updated_user_points = points.get_users().get(str(message.author.id), 0)
+                            log_message(f"User {parent_message.author.mention} has made a new Feedback Request and {required_points} Feedback Points has been deducted from their balance.")
                             response = (
-                                f"{message.author.mention}, you have successfully created a feedback request. One karma point has been deducted from your balance. Your updated karma points: {updated_user_karma}\n\n"
+                                f"{message.author.mention}, you have successfully created a Feedback Request. {required_points} Feedback Points have been deducted from your balance. Your updated Feedback Points: {updated_user_points}\n\n"
                             )
                             dm_channel = await parent_message.author.create_dm()
                             await dm_channel.send(response)
-                    return
+                        return
+                    if not is_initial_post:
+                        log_message(f"Processing Feedback given by {parent_message.author.mention} for Feedback Request {message.channel.name}")
+                        if message.author != parent_message.author:  
+                            log_message(f"Message author is not the Feedback requestor. Continue Processing Message.")
+                            if any(word in message.content.lower() for word in required_words):
+                                print("Message contains required words - Feedback Points will be awarded")
+                                log_message("Message contains required words - Feedback Points will be awarded")
+                            else:
+                                print("Message does not contain required words - Feedback Points will not be awarded")
+                                log_message("Message does not contain required words - Feedback Points will not be awarded")
+                                return
 
-                # Check if a message contains any of the required words in the `required_words`
-                # list. 
+                        # Award Feedback Points
+                        if len(message.content) < min_characters:
+                            log_message("Message does not contain enough characters to be eligible for Feedback Points.")
+                            return
+                        points.add_user_to_thread(thread_id, user_id)
+                        if points.user_exists(user_id):
+                            points.increment_user_points(user_id)
+                            karma.increment_user_karma(user_id, 1)
+                        else:
+                            points.add_user(user_id)
 
-                if any(word in message.content.lower() for word in required_words):
-                    print("Message contains required words - karma will be awarded")
-                    log_message("Message contains required words - karma will be awarded")
-                else:
-                    print("Message does not contain required words - karma will not be awarded")
-                    log_message("Message does not contain required words - karma will not be awarded")
-                    return
-                # Award Karma
-
-                karma.add_user_to_thread(thread_id, user_id)
-                if karma.user_exists(user_id):
-                    karma.increment_user_karma(user_id)
-                else:
-                    karma.add_user(user_id)
-
-
-                karma.save()
-                await message.add_reaction('✅')
-                await message.channel.send(f"{message.author.mention} has earned 1 feedback Karma!")
-                log_message(f"{message.author.mention} has earned 1 feedback Karma!")
+                        points.save()
+                        await message.add_reaction('✅')
+                        await message.channel.send(f"{message.author.mention} has earned 1 Feedback Point!")
+                        log_message(f"{message.author.mention} has earned 1 Feedback Point!")
         
     
     # In Text channels (Restricted by Channel ID) process bot commands  
