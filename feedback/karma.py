@@ -25,7 +25,17 @@ class Karma:
 
     def get_karma_total(self, user_id):
         return self.data["users"].get(user_id)
-    
+
+    def get_leaderboard(self):
+        users = self.get_users()
+        leaderboard = []
+        for user_id in users:
+            karma_total = self.get_karma_total(user_id)
+            leaderboard.append((user_id, karma_total))
+        leaderboard.sort(key=lambda x: x[1], reverse=True)
+        return leaderboard
+
   
+   
 
 

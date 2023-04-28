@@ -286,11 +286,16 @@ async def karmapoints(ctx, user: discord.User = None):
 @bot.command(name="leaderboard", help="Displays a server leaderboard ranked by Karma.\n Usage: /leaderboard")
 # Displays a server leaderboard ranked by Karma
 async def leaderboard(ctx): 
-    leaderboard_string = "Karma Leaderboard"
-    for user in karma.get_users: 
-        leaderboard_string += f"{user[0]} - {user[1]}\n"
+    # get a list of user total karma from karma.json and sort it as a leaderboard
+    leaderboard = karma.get_leaderboard()
+    leaderboard_string = "\n\n"
+    for user_id, karma_total in leaderboard:
+        user = await bot.fetch_user(user_id)
+        leaderboard_string += f"{user} - {karma_total}\n"
+
     embed = discord.Embed(title="Feedback - Karma Leaderboard", description=leaderboard_string, color=0x00ff00)
     await ctx.send(embed=embed)
+
 
 # Admin / Moderator command: 
 # Command for setting allowed file types which are required to initiate a Feedback Request.
