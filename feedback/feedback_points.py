@@ -26,15 +26,11 @@ class Points:
         self.data['threads'][thread_id] = []
 
     def add_user(self, user_id):
-        self.data['users'][user_id] = 1
+        self.data['users'][user_id] = 0
 
     def increment_user_points(self, user_id, points_change=required_points):
         new_points = self.data['users'][user_id] + points_change
-
-        if new_points > required_points:
-            self.data['users'][user_id] = required_points
-        else:
-            self.data['users'][user_id] = new_points
+        self.data['users'][user_id] = min(new_points, required_points)
 
     def add_user_to_thread(self, thread_id, user_id):
         self.data['threads'][thread_id].append(user_id)
@@ -53,6 +49,8 @@ class Points:
     def get_points(self, user_id):
         return self.data['users'].get(user_id, 0)
     
+    
+    
     def grant_points(self, user_id, points_to_grant):
         """Grant a specific number of feedback points to a user.
 
@@ -60,11 +58,9 @@ class Points:
             user_id (str): The ID of the user to grant points to.
             points_to_grant (int): The number of points to grant.
         """
-        if self.user_exists(user_id):
-            self.increment_user_points(user_id, points_to_grant)
-        else:
+        if not self.user_exists(user_id):
             self.add_user(user_id)
-            self.increment_user_points(user_id, points_to_grant)
+        self.increment_user_points(user_id, points_to_grant)
         self.save()
     
     
