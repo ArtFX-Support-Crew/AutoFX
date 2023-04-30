@@ -1,7 +1,6 @@
 # imports
 # ----------------------------------------------    
-import asyncio
-import datetime
+
 import logging
 import re
 import json
@@ -9,7 +8,7 @@ import io
 
 import discord
 from discord.ext import commands
-from discord import Embed, File
+from discord import Embed
 
 from config import token
 from feedback_points import Points
@@ -37,7 +36,7 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 points = Points()
 karma = Karma()
 enforce_requirements = True
-valid_attachments = [".wav", ".mp3", ".flac"]   
+valid_attachments = [".wav", ".mp3", ".flac", "aiff", ".m4a"]   
 
 required_words = [term.lower() for term in terms]
 required_points = 1
@@ -45,6 +44,7 @@ required_points = 1
 min_characters = 280
 
 required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|(?:www\.)?dropbox\.com|(?:www\.)?drive\.google\.com|clyp\.it)/'
+
 
 # Logging configuration setup
 # ----------------------------------------------    
@@ -58,7 +58,7 @@ async def log(ctx, action: str = "get"):
         action (str): get / clear. Defaults to "get".
 
     Examples:
-        /log get - Sends the log file as an attachment.
+        /log get - Gets the log file as an attachment.
         /log clear - Clears the log file.
     """
     log_file = next(
@@ -98,17 +98,50 @@ async def log(ctx, action: str = "get"):
         await ctx.send("Invalid action. Usage: /log <get/clear>")
 
 
-
 # If the user lacks permissions to use a bot command, or the command doesn't exist,
 # inform the user
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("You don't have the required permissions to use this command.")
+        logger.info('User does not have required permissions to use this command.')
     elif isinstance(error, commands.CommandNotFound):
         await ctx.send("Command not found.")
+        logger.info('Command not found.')
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Command Missing required argument.")
+        logger.info('Command missing required argument.')
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("Error in Command: Bad argument.")
+        logger.info('Error in Command: Bad argument.')
+    elif isinstance(error, commands.CommandInvokeError):
+        await ctx.send("Error in Command: Command Invoke Error.")
+        logger.info('Error in Command: Command Invoke Error.')
+    elif isinstance(error, commands.TooManyArguments):
+        await ctx.send("Error in Command: Too many arguments.")
+        logger.info('Error in Command: Too many arguments.')
+    elif isinstance(error, commands.UserInputError):
+        await ctx.send("Error in Command: User input error.")
+        logger.info('Error in Command: User input error.')
+    elif isinstance(error, commands.CheckFailure):
+        await ctx.send("Error in Command: Check failure.")
+        logger.info('Error in Command: Check failure.')
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send("Error in Command: Command on cooldown.")
+        logger.info('Error in Command: Command on cooldown.')
+    elif isinstance(error, commands.NotOwner):
+        await ctx.send("Error in Command: Not owner.")
+        logger.info('Error in Command: Not owner.')
+    elif isinstance(error, commands.MissingRole):
+        await ctx.send("Error in Command: Missing role.")
+        logger.info('Error in Command: Missing role.')
+    elif isinstance(error, commands.BotMissingPermissions):
+        await ctx.send("Error in Command: Bot missing permissions.")
+        logger.info('Error in Command: Bot missing permissions.')
     else:
         await ctx.send("An error occurred while processing your command.")
+        logger.info('An error occurred while processing the command.')
 
 def help_command(ctx):
     """
@@ -145,7 +178,10 @@ def update_channel_ids(forum_channel_ids, text_channel_ids):
         json.dump(data, file)
 
 
+# Bot Admin / Moderator Commands
+# ----------------------------------------------
 
+# Set listening channels for the bot
 
 @bot.command(name="channel", help="Add or remove a forum or text channel ID where the bot enforces rules.\n Usage: /channel <add/remove> <forum/text> <channel_id>")
 @commands.has_permissions(manage_messages=True)
@@ -169,7 +205,12 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
     if channel_type.lower() == "forum":
         if action.lower() == "add":
             if channel_id not in forum_channel_ids:
-                forum_channel_ids.append(channel_id)
+                try: 
+                    forum_channel_ids.append(channel_id)
+                except ValueError:
+                    await ctx.send("Invalid channel ID.")
+                    logger.warning("An invalid channel ID was entered.")
+                    return
                 await ctx.send(f"Forum channel ID {channel_id} has been added.")
                 logger.info(f"Forum channel ID {channel_id} has been added.")
             else:
@@ -177,7 +218,12 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
                 logger.info(f"Forum channel ID {channel_id} is already in the list.")
         elif action.lower() == "remove":
             if channel_id in forum_channel_ids:
-                forum_channel_ids.remove(channel_id)
+                try:
+                    forum_channel_ids.remove(channel_id)
+                except ValueError:
+                    await ctx.send("Invalid channel ID.")
+                    logger.warning("An invalid channel ID was entered.")
+                    return
                 await ctx.send(f"Forum channel ID {channel_id} has been removed.")
                 logger.info(f"Forum channel ID {channel_id} has been removed.")
             else:
@@ -185,13 +231,23 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
     elif channel_type.lower() == "text":
         if action.lower() == "add":
             if channel_id not in text_channel_ids:
-                text_channel_ids.append(channel_id)
+                try: 
+                    text_channel_ids.append(channel_id)
+                except ValueError:
+                    await ctx.send("Invalid channel ID.")
+                    logger.warning("An invalid channel ID was entered.")
+                    return
                 await ctx.send(f"Text channel ID {channel_id} has been added.")
             else:
                 await ctx.send(f"Text channel ID {channel_id} is already in the list.")
         elif action.lower() == "remove":
             if channel_id in text_channel_ids:
-                text_channel_ids.remove(channel_id)
+                try:
+                    text_channel_ids.remove(channel_id)
+                except ValueError:
+                    await ctx.send("Invalid channel ID.")
+                    logger.warning("An invalid channel ID was entered.")
+                    return
                 await ctx.send(f"Text channel ID {channel_id} has been removed.")
             else:
                 await ctx.send(f"Text channel ID {channel_id} is not in the list.")
@@ -199,9 +255,11 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
         await ctx.send("Invalid channel type. Usage: /channel <add/remove> <forum/text> <channel_id>")
 
     # Update the channel IDs in the JSON file
+    
     update_channel_ids(forum_channel_ids, text_channel_ids)
 
 # Admin / Moderator command: Grant a specific number of Feedback Points to a user.
+
 @bot.command(name="grant", help="Grant a specific number of Feedback Points to a user.\nUsage: /grant <@user> <points_to_grant>")
 @commands.has_permissions(manage_messages=True)
 async def grant_points(ctx, user: discord.User, points_to_grant: int):
@@ -209,10 +267,16 @@ async def grant_points(ctx, user: discord.User, points_to_grant: int):
         await ctx.send("Please mention a user and provide the number of points to grant.")
         logger.warning("grant_points function was called without sufficient arguments.")
         return
-
-    user_id = str(user.id)
-    points.grant_points(user_id, points_to_grant)
-    new_points = points.get_users().get(user_id, 0)
+    if points_to_grant < 0: 
+        await ctx.send("You cannot grant a negative number of points.")
+        return
+    try: 
+        user_id = str(user.id)
+        points.grant_points(user_id, points_to_grant)
+        new_points = points.get_users().get(user_id, 0)
+    except ValueError: 
+        await ctx.send("You cannot grant points to a bot.")
+        return
 
     await ctx.send(f"{user.mention} has been granted {points_to_grant} Feedback Points! Their new balance is {new_points}.")
     logger.info(f"{ctx.author} granted {points_to_grant} Feedback Points to {user.mention}.")
@@ -227,11 +291,13 @@ async def requiredpoints(ctx, new_required_points: int):
     if new_required_points < 0:
         await ctx.send("The required points value must be at least 0.")
         return
-    else:
+    try:
         required_points = new_required_points
         await ctx.send(f"Required points value has been set to {required_points}.")
         logger.info(f"The required points value has been updated. The new value is {required_points}")
-
+    except ValueError:
+        await ctx.send("The required points value must be a valid number.")
+        logger.warning("requiredpoints function was called without a valid number.")
 
 # Admin / Moderator command: Change the number of required characters
 # required in a feedback post reply, to qualify for Feedback Point reward
@@ -241,11 +307,11 @@ async def requiredpoints(ctx, new_required_points: int):
 async def minchars(ctx, chars: int):
     global min_characters
     if chars is None: 
-        await ctx.send("Please enter a valid number of characters")
+        await ctx.send(f"The number of feedback reply characters to qualify for Feedback Points currently set to: {min_characters}")
         return
     try: 
         min_characters = chars
-        await ctx.send(f"The number feedback reply characters to qualify for Feedback Points reward has been set to {min_characters}.")
+        await ctx.send(f"The number of feedback reply characters to qualify for Feedback Points reward has been set to {min_characters}.")
         logger.info(f"Minimum characters set to {min_characters}.")
     except ValueError: 
         await ctx.send("Please enter a valid integer for number of characters")
@@ -265,6 +331,8 @@ async def feedbackpoints(ctx, user: discord.User = None):
     await ctx.send(f"{user.mention} has {user_points} Feedback Points!")
     logger.info(f"Feedback Points value was retrieved via bot command for {user.mention}")
 
+# Retrieve the Karma points from karma.json for a given user.
+
 @bot.command(name="karma", help="Check your Karma.\n Usage: /karma <@user>")
 async def karmapoints(ctx, user: discord.User = None):
     if user is None: 
@@ -283,8 +351,9 @@ async def karmapoints(ctx, user: discord.User = None):
 
     await ctx.send(embed=embed)
 
-@bot.command(name="leaderboard", help="Displays a server leaderboard ranked by Karma.\n Usage: /leaderboard")
 # Displays a server leaderboard ranked by Karma
+
+@bot.command(name="leaderboard", help="Displays a server leaderboard ranked by Karma.\n Usage: /leaderboard")
 async def leaderboard(ctx): 
     # get a list of user total karma from karma.json and sort it as a leaderboard
     leaderboard = karma.get_leaderboard()
@@ -365,6 +434,7 @@ async def enforce(ctx, status: str):
     else:
         await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
 
+# Admin / Moderator command: Add/Remove Keywords from the Feedback word filter.
 
 @bot.command(name="keywords", help="Add or remove a required keyword from the Feedback word filter.\n Usage: /keywords <add/remove> <keyword>")
 @commands.has_permissions(manage_messages=True)
@@ -395,6 +465,7 @@ async def keywords(ctx, action: str, word: str):
     else:
         await ctx.send("Invalid action. Usage: !keyword <add/remove> <word>")
 
+# Admin / Moderator command: Display a list of bot commands
 
 @bot.command(name='commands', help='Show a list of all Feedback bot commands\n Usage: /commands')
 async def commands_list(ctx):
@@ -439,7 +510,7 @@ async def on_message(message):
         and message.channel.id in read_channel_ids()[1]
     )
 
-
+# Process messages in the forum channel, if the forum channel is on the list of allowed channels
 
     if is_forum_channel:
         
@@ -464,11 +535,10 @@ async def on_message(message):
                 parent_message = msg
                 break
 
-                # If it is the initial post, check that it meets the requirements
+            # If it is the initial post, check that it meets the requirements
             is_initial_post = message.created_at == parent_message.created_at
             print(f'Message created: {message.created_at}. Parent message created: {parent_message.created_at}. Is initial post: {is_initial_post}')
             if is_initial_post:
-
                 print("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
                 logger.info("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
 
@@ -488,6 +558,7 @@ async def on_message(message):
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response)
                     return
+                
                 # Check if the user has at least the minimum required feedback points in feedback_points.json. 
                 # If not, delete the post and send a DM to the user
                 user_points = points.get_users().get(user_id, 0)
@@ -500,6 +571,7 @@ async def on_message(message):
                     await dm_channel.send(response) 
                     return
                 else: 
+
                     # Allow the Feedback Request, decrease the user's Feedback Points by the required amount
                     points.increment_user_points(user_id, -required_points)
                     updated_user_points = points.get_points(user_id)
@@ -512,29 +584,34 @@ async def on_message(message):
                     await dm_channel.send(response)
 
             else: 
+                # Message is a reply, check if it meets the requirements
                 print('post is not an initial post')
-            # if the message is a reply to the initial forum pos
-
+                logger.info(f'New Feedback by {message.author} in thread {thread_id}')
                 print(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Checking reward status...')
                 logger.info(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Checking reward status...')
+
+                # Check if the user is the author of the Feedback Request, if so, do not award points
                 if parent_message.author.id == message.author.id:
                     print(f'User {message.author} is the Feedback Request Author. No points awarded.')
                     return
                 
+                # Check if the reply meets the requirements for point rewards
                 contains_required_words = any(word in message.content for word in required_words)
                 message_length = len(message.content)
                 if contains_required_words and message_length >= min_characters:   
-                    print(f'Message contains required words and meets minimum character requirements.')
-                    logger.info(f'Message contains required words and meets minimum character requirements.')
+                    print('Message contains required words and meets minimum character requirements.')
+                    logger.info('Message contains required words and meets minimum character requirements.')
                     if not points.user_in_thread(thread_id, user_id):
                         points.add_user_to_thread(thread_id, user_id)
                         print(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
                         logger.info(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
                         points.increment_user_points(user_id, required_points)
                         points.save()
+                        logger.info('Feedback Points - Saved')
                         await message.add_reaction('✅')
                         karma.increment_user_karma(user_id, 1)
                         karma.save()
+                        logger.info('Karma Points - Saved')
                         await message.add_reaction('✅')
                         # bot message in thread that feedback point has been awarded
                         response = (f"{message.author.mention}, has earned one Feedback Point and increased their Karma!\n\n")
@@ -545,6 +622,7 @@ async def on_message(message):
                     return
                 else: 
                     print('Message did not meet requirements. No points rewarded')
+                    logger.info('Message did not meet requirements. No points rewarded')
     if is_text_channel:   
         await bot.process_commands(message)
 
