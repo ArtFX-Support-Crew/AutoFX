@@ -15,10 +15,10 @@ ArtFX Discord Server Bot, Custom modules and bot functions
 
   <p align="center">
     <br />
-    <a href="https://github.com/ArtFX-Support-Crew/AutoFX"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/ArtFX-Support-Crew/AutoFX"><strong>Documentation »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/ArtFX-Support-Crew/AutoFX">View Demo</a>
+    <a href="https://github.com/ArtFX-Support-Crew/AutoFX">Commands</a>
     ·
     <a href="https://github.com/ArtFX-Support-Crew/AutoFX">Report Bug</a>
     ·
