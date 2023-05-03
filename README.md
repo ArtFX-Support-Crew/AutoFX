@@ -61,9 +61,11 @@ ArtFX Discord Server Bot, Custom modules and bot functions
 
 Feedback is a bot which will enforce message standards in forum channels built in Discord.py. While customizable, the specific purpose of the bot is to ensure that meaningful feedback is provided by users replying to another user who has requested feedback on an audio project. 
 
-Where the bot is added, it will process messages within forum channel threads and ensure that new threads include audio files or audio links. 
+Where the bot is added, it will enforce post requirements in feedback channels to make sure that new posts meet the requirements. While enabled, initial requirements for feedback posts include a valid audio attachment or link to a music sharing service such as youtube, soundcloud or clypt.it. 
 
-To reward users for providing feedback. Karma points are granted. In the future Karma points may be necessary to initiate a feedback request. 
+Feedback Requests require Feedback Points, which can be earned by providing feedback for others. To award Feedback Points, messages within forum channel threads are processed to check for meaningful feedback terms and message length. If the message meets the requirements, Feeback Points and Karma Points are awarded to the user replying to the thread. 
+
+A users Feedback Points are reset to zero when a new Feedback Request has made. The required Feedback Points to make a new request is set by default to 1, but this value can be customized by command, as well as most other message requirements enforced by the bot. 
 
 How Karma is awarded: 
 
@@ -76,11 +78,10 @@ How Karma is awarded:
            # `min_characters` variable)
            # - The message contains at least one of the required words (specified by the
            # `required_words` list)
-           # If all of these criteria are met, the user who sent the message earns a feedback karma
-           # point, which is recorded in a JSON file named "karma.json". The user's karma points are
-           # also added to their total count in the JSON file. Finally, a checkmark reaction is added
+           # - The user has not already received Feedback Points based on a prior message (Maximum 1 point per thread)
+           # - The initial thread author (Feedback Requestor) cannot score points on their own requests. 
+           # - If all of these criteria are met, the user who replied is awarded Feedback Points and Karma. 
 
-: `github_username`, `repo_name`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
