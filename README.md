@@ -113,11 +113,10 @@ Modules:
 
 Installing and running the bot:
 
-   ```
+   
 1. Clone the repo and place the files wherever you plan to run the bot
 2. Enter your Discord Application API key in config.py
 3. Start the bot with main.py
-  ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
