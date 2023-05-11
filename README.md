@@ -153,8 +153,6 @@ See the [open issues](https://github.com/github_username/repo_name/issues) for a
 <!-- CONTRIBUTING -->
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
 Don't forget to give the project a star! Thanks again!
 
@@ -180,13 +178,9 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 <!-- CONTACT -->
 ## Contact
 
-Your Name - [@twitter_handle](https://twitter.com/ogslurmsmackenzie) - email@email_client.com
+ropeadope62 - [@twitter_handle](https://twitter.com/ogslurmsmackenzie)
 
-Project Link: [https://github.com/github_username/repo_name](https://github.com/ArtFX-Support-Crew/AutoFX/tree/main/feedback)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
+Project Link: [AutoFX Feedback](https://github.com/ArtFX-Support-Crew/AutoFX/tree/main/feedback)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
