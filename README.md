@@ -99,23 +99,38 @@ How Karma is awarded:
 <!-- GETTING STARTED -->
 ## Getting Started
 
+Create 
 
 ### Prerequisites
 
+Modules: 
+  - discord.py
+  - io
+  - json
+  - math
 
 ### Installation
+
+Installing and running the bot:
 
    ```
 1. Clone the repo and place the files wherever you plan to run the bot
 2. Enter your Discord Application API key in config.py
-3. Start the bot with main.py```
+3. Start the bot with main.py
+  ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 ### Usage
 
+1. Configure the bot command prefix in feedback.py and add a text channel ID where the bot will listen for commands. The default prefix is '/'.
+
+Initially the bot will not be responding to commands, an appropriate text channel will have to be configured in feedback_channels.json. You only have to set a text channel to get started and from that point you can change the monitored channels list with commands.  
+
+```
+{"forum_channel_ids": [forumchannelid], "text_channel_ids": [textchannelid}
+```
+2. Add the forum channel id to feedback_channels.json
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
