@@ -1,11 +1,10 @@
 import openai
 import config
 import time
-class OpenAI: 
-    def __init__(self):
-        openai.api_key = config.openai_api_key
-    def feedback_response(self, persona):
-        prompt = f'{self}\n\n{persona}'
+class openAI: 
+    def feedback_ai(self):
+
+        openai.api_key = "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"
         try:
             # Check if the message qualifies as meaningful feedback
             response = openai.Completion.create(
