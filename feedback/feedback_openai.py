@@ -1,25 +1,28 @@
 import openai
+import config
 import time
-class openAI: 
-    def feedback_ai(self):
-
-        openai.api_key = "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"
+class OpenAI: 
+    def __init__(self):
+        openai.api_key = config.openai_api_key
+    def feedback_response(self, persona):
+        prompt = f'{self}\n\n{persona}'
         try:
-
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": 'assistant', "content": f'{self}'}],
+            # Check if the message qualifies as meaningful feedback
+            response = openai.Completion.create(
+                engine='text-davinci-003',
+                prompt=prompt,
+                max_tokens=1,
+                n=1,
+                stop=None,
+                temperature=1,
+                top_p=0.5,
+                frequency_penalty=0,
+                presence_penalty=0,
             )
-
-            answer = response["choices"][0]["message"]["content"]
-            usage = response["usage"]["total_tokens"]
-
-            return answer, usage
-
-
-        except openai.error.RateLimitError as e:
-
-            retry_time = e.retry_after if hasattr(e, 'retry_after') else 30
-            print(f"Rate limit exceeded. Retrying in {retry_time} seconds...")
-            time.sleep(retry_time)
-            return feedback_ai(self)
+            return response.choices[0].text.strip()   
+        except openai.error.AuthenticationError:
+            return "AuthenticationError: Please check your OpenAI API credentials."
+            
+    
+openai_instance = OpenAI()
+persona = '''I am a bot which gives yes/no answers to if I think some text is meaningful feedback (yes) or not meaningful (no)'''

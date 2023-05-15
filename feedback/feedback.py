@@ -10,10 +10,11 @@ import discord
 from discord.ext import commands
 from discord import Embed
 
-from config import token
+from config import token, persona
 from feedback_points import Points
 from karma import Karma
 from terms import terms
+from feedback_openai import OpenAI
 
 # Constants and Configurations
 # ----------------------------------------------
@@ -33,10 +34,13 @@ intents.reactions = True
 intents.members = True
 
 bot = commands.Bot(command_prefix='/', intents=intents)
+openai = OpenAI()
 points = Points()
 karma = Karma()
 enforce_requirements = True
-valid_attachments = [".wav", ".mp3", ".flac", "aiff", ".m4a"]   
+valid_attachments = [".wav", ".mp3", ".flac", "aiff", ".m4a"]
+feedback_openai_integration = False   
+ai_persona = persona
 
 required_words = [term.lower() for term in terms]
 required_points = 1
@@ -638,6 +642,8 @@ async def on_message(message):
                     return
                 
                 # Check if the reply meets the requirements for point rewards
+                is_meaningful = openai.feedback_response(message.content, ai_persona)
+                print(is_meaningful)
                 contains_required_words = any(word in message.content for word in required_words)
                 message_length = len(message.content)
                 if contains_required_words and message_length >= min_characters:   
