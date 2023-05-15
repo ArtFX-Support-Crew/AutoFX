@@ -2,8 +2,11 @@
 config.py
 .json
 feedback/config.py
-feedback/New Text Document.txt
+feedback/feedback_bot.log
+feedback/feedback_channels.json
+feedback/feedback_log.txt
+feedback/.vscode/settings.json
+feedback/.vscode/launch.json
+feedback/.vscode/extensions.json
 feedback/config.py
-feedback/config.py
-feedback/config.py
-feedback/config.py
+feedback/feedback_log.txt
