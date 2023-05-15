@@ -4,7 +4,7 @@ import time
 class openAI: 
     def feedback_ai(self):
 
-        openai.api_key = "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"
+        openai.api_key = ""
         try:
             # Check if the message qualifies as meaningful feedback
             response = openai.Completion.create(
