@@ -49,8 +49,6 @@ class Points:
     def get_points(self, user_id):
         return self.data['users'].get(user_id, 0)
     
-    
-    
     def grant_points(self, user_id, points_to_grant):
         """Grant a specific number of feedback points to a user.
 
@@ -63,4 +61,5 @@ class Points:
         self.increment_user_points(user_id, points_to_grant)
         self.save()
     
+
     

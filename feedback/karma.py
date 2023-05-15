@@ -1,4 +1,5 @@
 import json
+import math
 class Karma:
     def __init__(self, file_name="karma.json"):
         self.file_name = file_name
@@ -35,7 +36,9 @@ class Karma:
         leaderboard.sort(key=lambda x: x[1], reverse=True)
         return leaderboard
 
-  
+    def get_level(self):
+        karma_total = self.get_karma_total(self.user_id)
+        return round(karma_total // 8) 
    
 
 

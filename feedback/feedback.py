@@ -82,6 +82,7 @@ async def log(ctx, action: str = "get"):
                 log_bytes = io.BytesIO(log_content)
                 log_attachment = discord.File(log_bytes, filename="feedback_bot.log")
                 await ctx.send(file=log_attachment)
+                logger.info(f'Log file sent to {ctx.author}.')
             else:
                 await ctx.send("The log file is empty.")
         except FileNotFoundError:
@@ -92,6 +93,7 @@ async def log(ctx, action: str = "get"):
                 f.truncate(0)
 
             await ctx.send("The log file has been cleared.")
+            logger.info(f'Log file cleared by {ctx.author}.')
         except FileNotFoundError:
             await ctx.send("The log file could not be found.")
     else:
@@ -177,6 +179,15 @@ def update_channel_ids(forum_channel_ids, text_channel_ids):
     with open("feedback_channels.json", "w") as file:
         json.dump(data, file)
 
+def display_progress_bar(message, total_value):
+    embed = discord.Embed(title="Progress Bar")
+    embed.description = f"{message}: {total_value}%"
+    embed.add_field(
+        name="Progress",
+        value=f'[{"=" * int(total_value / 10)}{" " * (10 - int(total_value / 10))}]',
+        inline=True,
+    )
+    return embed
 
 # Bot Admin / Moderator Commands
 # ----------------------------------------------
@@ -186,6 +197,7 @@ def update_channel_ids(forum_channel_ids, text_channel_ids):
 @bot.command(name="channel", help="Add or remove a forum or text channel ID where the bot enforces rules.\n Usage: /channel <add/remove> <forum/text> <channel_id>")
 @commands.has_permissions(manage_messages=True)
 async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
+    # sourcery skip: low-code-quality
     """Feedback - set_channel: Add or remove a forum or text channel ID where the bot enforces rules.
         Args:
         action (str): add / remove.
@@ -207,6 +219,7 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
             if channel_id not in forum_channel_ids:
                 try: 
                     forum_channel_ids.append(channel_id)
+                    logger.info(f'Forum channel ID {channel_id} has been added to monitored channels.')
                 except ValueError:
                     await ctx.send("Invalid channel ID.")
                     logger.warning("An invalid channel ID was entered.")
@@ -233,6 +246,7 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
             if channel_id not in text_channel_ids:
                 try: 
                     text_channel_ids.append(channel_id)
+                    logger.info(f'Text channel ID {channel_id} has been added to monitored channels.')
                 except ValueError:
                     await ctx.send("Invalid channel ID.")
                     logger.warning("An invalid channel ID was entered.")
@@ -244,11 +258,13 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
             if channel_id in text_channel_ids:
                 try:
                     text_channel_ids.remove(channel_id)
+                    logger.info(f'Text channel ID {channel_id} has been removed from monitored channels.')
                 except ValueError:
                     await ctx.send("Invalid channel ID.")
                     logger.warning("An invalid channel ID was entered.")
                     return
                 await ctx.send(f"Text channel ID {channel_id} has been removed.")
+                logger.info(f'Text channel ID {channel_id} has been removed from monitored channels.')
             else:
                 await ctx.send(f"Text channel ID {channel_id} is not in the list.")
     else:
@@ -344,15 +360,23 @@ async def karmapoints(ctx, user: discord.User = None):
         embed = discord.Embed(title=f"Karma - {ctx.author}", description=f"Your Karma: {karma_total}", color=0x00ff00)
         logger.info(f"{ctx.author} retrieved their Karma.")
     else:
-        embed = discord.Embed(title=f"Karma - {user}", description=f"{user}'s Karma: {karma_total}", color=0x00ff00) 
+        embed = discord.Embed(title=f"Karma - {user}", description=f"{user}'s Karma: {karma_total}", color=0x00ff00)
         logger.info(f"{ctx.author} retrieved {user}'s Karma.")
     
     # Create the embed
 
     await ctx.send(embed=embed)
 
-# Displays a server leaderboard ranked by Karma
+@bot.command(name="level", help="Check user Karma Level. \n Usage: /level <@user>")
+async def karmalevel(ctx, user: discord.User = None):
+    if user is None: 
+        user = ctx.author
+    user_id = str(user.id)
+    total_value = 25
+    return display_progress_bar(10)
 
+
+# Displays a server leaderboard ranked by Karma
 @bot.command(name="leaderboard", help="Displays a server leaderboard ranked by Karma.\n Usage: /leaderboard")
 async def leaderboard(ctx): 
     # get a list of user total karma from karma.json and sort it as a leaderboard
@@ -364,6 +388,7 @@ async def leaderboard(ctx):
 
     embed = discord.Embed(title="Feedback - Karma Leaderboard", description=leaderboard_string, color=0x00ff00)
     await ctx.send(embed=embed)
+    logger(f'{ctx.author} retrieved the Karma Leaderboard.')
 
 
 # Admin / Moderator command: 
@@ -409,28 +434,39 @@ async def extension(ctx, action: str, filetype: str):
 @bot.command(name="enforce", help="Enable or Disable Feedback Enforcement \n Usage: /enforce <enable/disable>")
 @commands.has_permissions(manage_messages=True)
 async def enforce(ctx, status: str):
-    """Enable or Disable Feedback Enforcement
+    """Enable / Disable Feedback Enforcement, or get its current status. 
 
     Args:
-        status (str): enable / disable
+        status (str): enable / disable / status
     """
     global enforce_requirements
     status = status.lower()
-    if status is None or status not in ["enable", "disable"]:
+    if status is None or status not in ["enable", "disable", "status"]:
         await ctx.send("Please enter a valid enforcement status.")
         return
     if status == 'disable':
         if enforce_requirements:
             enforce_requirements = False
+            print('Feedback Request enforcement disabled.')
+            logger.info(f"{ctx.author} has disabled Feedback Request enforcement.")
             await ctx.send("Feedback Request enforcement disabled.")
         else:
             await ctx.send("Feedback Request enforcement is already disabled.")
     elif status == 'enable':
-        if not enforce_requirements:
-            enforce_requirements = True
-            await ctx.send("Feedback Request enforcement enabled.")
-        else:
+        if enforce_requirements:
             await ctx.send("Feedback Request enforcement is already enabled.")
+        else:
+            enforce_requirements = True
+            print('Feedback Request enforcement enabled.')
+            logger.info(f"{ctx.author} has enabled Feedback Request enforcement.")
+            await ctx.send("Feedback Request enforcement enabled.")
+    elif status == 'status':
+        logger.info(f"{ctx.author} has checked the Feedback Request enforcement status.")
+        if enforce_requirements:
+            await ctx.send('Feedback Request enforcement is enabled.')
+        else: 
+            await ctx.send('Feedback Request enforcement is disabled.')
+
     else:
         await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
 
@@ -480,6 +516,7 @@ async def commands_list(ctx):
         embed.add_field(name=command.name, value=command.help, inline=False)
 
     await ctx.send(embed=embed)
+    logger.info(f'{ctx.author} has requested a list of Feedback commands.')
 
 # Ready the bot
 @bot.event
@@ -491,6 +528,8 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
+    if message.author.bot: 
+        return
     if message.author == bot.user:
         return
     if message.channel.type == discord.ChannelType.public_thread:
@@ -557,6 +596,7 @@ async def on_message(message):
                     response = (f"{message.author.mention}, your Feedback Request has been removed since it did not meet requirements. To create a Feedback Request, you need to include a valid URL or audio attachment: {valid_attachments}\n\n")
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response)
+                    logger.info(f'DM sent to user {parent_message.author.id}.')
                     return
                 
                 # Check if the user has at least the minimum required feedback points in feedback_points.json. 
@@ -582,6 +622,7 @@ async def on_message(message):
                     response = (f"{parent_message.author.mention}, you have successfully created a Feedback Request - {message.channel.name}. {required_points} Feedback Points have been deducted from your balance. Your updated Feedback Points: {updated_user_points}\n\n")
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response)
+                    logger.info(f"DM Sent to user {parent_message.author.mention}")
 
             else: 
                 # Message is a reply, check if it meets the requirements
@@ -593,6 +634,7 @@ async def on_message(message):
                 # Check if the user is the author of the Feedback Request, if so, do not award points
                 if parent_message.author.id == message.author.id:
                     print(f'User {message.author} is the Feedback Request Author. No points awarded.')
+                    logger.info(f'User {message.author} is the Feedback Request Author. No points awarded.')
                     return
                 
                 # Check if the reply meets the requirements for point rewards
@@ -623,6 +665,10 @@ async def on_message(message):
                 else: 
                     print('Message did not meet requirements. No points rewarded')
                     logger.info('Message did not meet requirements. No points rewarded')
+        else:
+            print('Feedback Request and Award System is currently disabled. ')
+
+
     if is_text_channel:   
         await bot.process_commands(message)
 
