@@ -1,9 +1,11 @@
 import openai
 import config
-import time
-class openAI: 
-    def feedback_ai(self):
-
+class OpenAI: 
+    def __init__ (self):
+        self.persona = config.persona
+        openai.api_key = config.openai_api_key
+    def feedback_ai(self, message):
+        prompt = f'{self.persona}\n\n{message}'
         openai.api_key = config.openai_api_key
         try:
             # Check if the message qualifies as meaningful feedback
@@ -18,10 +20,10 @@ class openAI:
                 frequency_penalty=0,
                 presence_penalty=0,
             )
-            return response.choices[0].text.strip()   
+            return response.choices[0].text.strip()  
+             
         except openai.error.AuthenticationError:
             return "AuthenticationError: Please check your OpenAI API credentials."
             
     
-openai_instance = OpenAI()
-persona = '''I am a bot which gives yes/no answers to if I think some text is meaningful feedback (yes) or not meaningful (no)'''
+

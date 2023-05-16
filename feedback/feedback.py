@@ -39,7 +39,7 @@ points = Points()
 karma = Karma()
 enforce_requirements = True
 valid_attachments = [".wav", ".mp3", ".flac", "aiff", ".m4a"]
-feedback_openai_integration = False   
+feedback_openai_integration = True 
 ai_persona = persona
 
 required_words = [term.lower() for term in terms]
@@ -474,6 +474,45 @@ async def enforce(ctx, status: str):
     else:
         await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
 
+@bot.command(name="feedback_ai", help="Enable or Disable OpenAI Integration \n Usage: /feedback_ai <enable/disable/status>")
+@commands.has_permissions(manage_messages=True)
+async def feedback_ai_integration(ctx, status: str):
+    """Enable / Disable OpenAI Integration, or get its current status. 
+
+    Args:
+        status (str): enable / disable / status
+    """
+    global feedback_openai_integration
+    status = status.lower()
+    if status is None or status not in ["enable", "disable", "status"]:
+        await ctx.send("Please enter a valid openAI status.")
+        return
+    if status == 'disable':
+        if feedback_openai_integration:
+            feedback_openai_integration = False
+            print('Feedback OpenAI Integration disabled.')
+            logger.info(f"{ctx.author} has disabled Open AI Integration.")
+            await ctx.send("Feedback OpenAI Integration disabled.")
+        else:
+            await ctx.send("Feedback OpenAI Integration is already disabled.")
+    elif status == 'enable':
+        if feedback_openai_integration:
+            await ctx.send("Feedback OpenAI Integration is already enabled.")
+        else:
+            feedback_openai_integration = True
+            print('Feedback OpenAI Integration enabled.')
+            logger.info(f"{ctx.author} has enabled Feedback OpenAI Integration.")
+            await ctx.send("Feedback OpenAI Integration enabled.")
+    elif status == 'status':
+        logger.info(f"{ctx.author} has checked the Feedback OpenAI Integration status.")
+        if feedback_openai_integration:
+            await ctx.send('Feedback OpenAI Integration is enabled.')
+        else: 
+            await ctx.send('Feedback OpenAI Integration is disabled.')
+
+    else:
+        await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
+
 # Admin / Moderator command: Add/Remove Keywords from the Feedback word filter.
 
 @bot.command(name="keywords", help="Add or remove a required keyword from the Feedback word filter.\n Usage: /keywords <add/remove> <keyword>")
@@ -515,7 +554,7 @@ async def commands_list(ctx):
         color=0x00FF00  # Green color
     )
 
-    # Add a field to embed. embed. add_field name value help inline False
+    # Add a field to embed with the commands
     for command in bot.commands:
         embed.add_field(name=command.name, value=command.help, inline=False)
 
@@ -637,18 +676,30 @@ async def on_message(message):
 
                 # Check if the user is the author of the Feedback Request, if so, do not award points
                 if parent_message.author.id == message.author.id:
-                    print(f'User {message.author} is the Feedback Request Author. No points awarded.')
-                    logger.info(f'User {message.author} is the Feedback Request Author. No points awarded.')
+                    print(f'User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
+                    logger.info(f'User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
                     return
                 
                 # Check if the reply meets the requirements for point rewards
-                is_meaningful = openai.feedback_response(message.content, ai_persona)
-                print(is_meaningful)
+                if feedback_openai_integration:
+                    openai_check_result = openai.feedback_ai(message.content)
+                    if openai_check_result != 'Yes':  
+                        print('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
+                        logger.info('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
+                        return
+                    print(f'OpenAI returned: {openai_check_result}')
+                    print(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
+                    logger.info(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
+                
                 contains_required_words = any(word in message.content for word in required_words)
                 message_length = len(message.content)
+                print(f'Checking if message contains required words and meets minimum character requirements.')
+                logger.info(f'Checking if message contains required words and meets minimum character requirements.')
                 if contains_required_words and message_length >= min_characters:   
                     print('Message contains required words and meets minimum character requirements.')
                     logger.info('Message contains required words and meets minimum character requirements.')
+                    print('Checking if user has already been awarded points in the thread.')
+                    logger.info('Checking if user has already been awarded points in the thread.')
                     if not points.user_in_thread(thread_id, user_id):
                         points.add_user_to_thread(thread_id, user_id)
                         print(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')

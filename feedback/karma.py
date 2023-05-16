@@ -21,7 +21,6 @@ class Karma:
             self.save()
 
     def get_users(self):
-        print(self.data['users'])
         return self.data["users"]
 
     def get_karma_total(self, user_id):
@@ -39,6 +38,8 @@ class Karma:
     def get_level(self):
         karma_total = self.get_karma_total(self.user_id)
         return round(karma_total // 8) 
+
+
    
 
 
