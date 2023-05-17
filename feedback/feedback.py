@@ -308,6 +308,7 @@ async def grant_points(ctx, user: discord.User, points_to_grant: int):
     await ctx.send(f"{user.mention} has been granted {points_to_grant} Feedback Points! Their new balance is {new_points}.")
     logger.info(f"{ctx.author} granted {points_to_grant} Feedback Points to {user.mention}.")
 
+# Admin / Moderator command: Change the required feedback points to post a new request.
 @bot.command(name="requiredpoints", help="Set the required number of Feedback Points for a user to initiate a new Feedback Request.\n Usage: /requiredpoints <number>")
 @commands.has_permissions(manage_messages=True)
 async def requiredpoints(ctx, new_required_points: int):
@@ -350,7 +351,6 @@ async def minchars(ctx, chars: int):
 
 
 # Retrieve the Feedback points from feedback_points.json for a given user.
-
 @bot.command(name="points", help="Get the number of Feedback Points for a given user. \n Usage: /points <@user>")
 async def feedbackpoints(ctx, user: discord.User = None):
     if user is None:
@@ -364,7 +364,6 @@ async def feedbackpoints(ctx, user: discord.User = None):
     logger.info(f"Feedback Points value was retrieved via bot command for {user.mention}")
 
 # Retrieve the Karma points from karma.json for a given user.
-
 @bot.command(name="karma", help="Check your Karma.\n Usage: /karma <@user>")
 async def karmapoints(ctx, user: discord.User = None):
     if user is None: 
@@ -409,7 +408,6 @@ async def leaderboard(ctx):
 
 # Admin / Moderator command: 
 # Command for setting allowed file types which are required to initiate a Feedback Request.
-
 @bot.command(name="extension", help="Add/Remove an extension from the allowed extensions list. \n Usage: /extension <add/remove> <filetype>")
 @commands.has_permissions(manage_messages=True)
 async def extension(ctx, action: str, filetype: str):
@@ -447,7 +445,6 @@ async def extension(ctx, action: str, filetype: str):
 # Admin / Moderator command: Toggle the enforcement for initial post requirements. Setting to Enabled
 # will enforce a check that a user has minimum feedback points to post a new request. Subsequently, if a Feedback
 # Request is made, Feedback points are deducted from their balance tracked in feedback_points.json
-
 @bot.command(name="enforce", help="Enable or Disable Feedback Enforcement \n Usage: /enforce <enable/disable>")
 @commands.has_permissions(manage_messages=True)
 async def enforce(ctx, status: str):
@@ -491,6 +488,7 @@ async def enforce(ctx, status: str):
         await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
         save_configuration(configuration)
 
+# Admin / Moderator command: Enable or Disable OpenAI Integration, which checks feedback responses for meaningful content.
 @bot.command(name="feedback_ai", help="Enable or Disable OpenAI Integration \n Usage: /feedback_ai <enable/disable/status>")
 @commands.has_permissions(manage_messages=True)
 async def feedback_ai_integration(ctx, status: str):
@@ -534,7 +532,6 @@ async def feedback_ai_integration(ctx, status: str):
         save_configuration(configuration)
 
 # Admin / Moderator command: Add/Remove Keywords from the Feedback word filter.
-
 @bot.command(name="keywords", help="Add or remove a required keyword from the Feedback word filter.\n Usage: /keywords <add/remove> <keyword>")
 @commands.has_permissions(manage_messages=True)
 async def keywords(ctx, action: str, word: str):
@@ -563,7 +560,6 @@ async def keywords(ctx, action: str, word: str):
         await ctx.send("Invalid action. Usage: !keyword <add/remove> <word>")
 
 # Admin / Moderator command: Display a list of bot commands
-
 @bot.command(name='commands', help='Show a list of all Feedback bot commands\n Usage: /commands')
 async def commands_list(ctx):
     embed = Embed(
@@ -579,7 +575,8 @@ async def commands_list(ctx):
     await ctx.send(embed=embed)
     logger.info(f'{ctx.author} has requested a list of Feedback commands.')
 
-
+# Admin / Moderator command: Responds to new Feedback Requests with the current bot configuration.
+# This is useful for referencing the bots configuration against behaviour in the same thread. 
 @bot.command(name='devmode', help='Enable or disable developer mode\n Usage: /devmode <enable/disable>')
 @commands.has_permissions(manage_messages=True)  
 async def dev_mode(ctx, status: str):
@@ -595,6 +592,7 @@ async def dev_mode(ctx, status: str):
     save_configuration(configuration)  # Assumes you have a function to save the configuration
 
     await ctx.send(f"Developer mode has been set to: {'ON' if dev_mode_status else 'OFF'}")
+
 # Ready the bot
 @bot.event
 async def on_ready():
@@ -602,7 +600,6 @@ async def on_ready():
     logger.info(f'{bot.user.name} is now enforcing Feedback!')
 
 # Check if the message author is the bot itself, if not, continue to process messages 
-
 @bot.event
 async def on_message(message):
     if message.author.bot: 
@@ -627,7 +624,6 @@ async def on_message(message):
     )
 
 # Process messages in the forum channel, if the forum channel is on the list of allowed channels
-
     if is_forum_channel:
         configuration = load_configuration()
 
@@ -654,7 +650,8 @@ async def on_message(message):
             print(f'Message created: {message.created_at}. Parent message created: {parent_message.created_at}. Is initial post: {is_initial_post}')
             
             is_dev_mode = (configuration["dev_mode"] is True)
-
+            
+            # If Dev mode is enabled, send a message to the channel with the current configuration
             if is_initial_post and is_dev_mode:
                 # Dev message - Feedback Bot Configuration
                 configuration = load_configuration()
