@@ -129,7 +129,16 @@ Initially the bot will not be responding to commands, an appropriate text channe
 ```
 {"forum_channel_ids": [forumchannelid], "text_channel_ids": [textchannelid}
 ```
+
+After an initial text channel has been set for bot commands. You can use /channel to manage monitored text and forum channels. 
+
 2. Add the forum channel id to feedback_channels.json
+
+```/channel add forum <forumchannelid>```
+
+3. Configure some Feedback Parameters
+
+``` feedback parameters: ```
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
