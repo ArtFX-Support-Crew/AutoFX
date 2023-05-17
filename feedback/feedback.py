@@ -59,12 +59,12 @@ async def config_state(ctx):
     try: 
         configuration = load_configuration()
         embed = Embed(title="Dev Message - Feedback Bot Configuration", color=0x00ff00)
-        embed.add_field(name="Enforce Requirements", value=configuration["enforce_requirements"])
-        embed.add_field(name="Feedback OpenAI Integration", value=configuration["feedback_openai_integration"])
-        embed.add_field(name="Keyword Check", value="True" if configuration["keyword_check"] else "False")
+        embed.add_field(name="Enforce Requirements", value= 'On' if configuration["enforce_requirements"] else 'Off')
+        embed.add_field(name="Feedback OpenAI Integration", value= 'On' if configuration["feedback_openai_integration"] else 'Off')
+        embed.add_field(name="Keyword Check", value='On' if configuration["keyword_check"] else 'Off')
         embed.add_field(name="Required Points", value=configuration["required_points"])
         embed.add_field(name="Minimum Characters", value=configuration["min_characters"])
-        embed.add_field(name="Developer Mode", value=configuration["dev_mode"])
+        embed.add_field(name="Developer Mode", value='On' if configuration["dev_mode"] else 'Off')
         await ctx.send(embed=embed)
     except Exception as e:
         await ctx.send(f"An error occurred while retrieving the configuration")
@@ -657,12 +657,12 @@ async def on_message(message):
                 # Dev message - Feedback Bot Configuration
                 configuration = load_configuration()
                 embed = Embed(title="Dev Message - Feedback Bot Configuration", color=0x00ff00)
-                embed.add_field(name="Enforce Requirements", value=configuration["enforce_requirements"])
-                embed.add_field(name="Feedback OpenAI Integration", value=configuration["feedback_openai_integration"])
-                embed.add_field(name="Keyword Check", value="True" if configuration["keyword_check"] else "False")
+                embed.add_field(name="Enforce Requirements", value= 'On' if configuration["enforce_requirements"] else 'Off')
+                embed.add_field(name="Feedback OpenAI Integration", value= 'On' if configuration["feedback_openai_integration"] else 'Off')
+                embed.add_field(name="Keyword Check", value='On' if configuration["keyword_check"] else 'Off')
                 embed.add_field(name="Required Points", value=configuration["required_points"])
                 embed.add_field(name="Minimum Characters", value=configuration["min_characters"])
-                embed.add_field(name="Developer Mode", value=configuration["dev_mode"])
+                embed.add_field(name="Developer Mode", value='On' if configuration["dev_mode"] else 'Off')
 
                 await message.channel.send(embed=embed)
 
