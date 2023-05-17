@@ -67,20 +67,23 @@ Feedback Requests require Feedback Points, which can be earned by providing feed
 
 A users Feedback Points are reset to zero when a new Feedback Request has made. The required Feedback Points to make a new request is set by default to 1, but this value can be customized by command, as well as most other message requirements enforced by the bot. 
 
-How Karma is awarded: 
+Basic Overview: 
 
-           # - The message is not sent by the bot itself
-           # - The message is sent in a public thread channel
-           # - The initial post in the thread (the parent message) contains a valid URL or audio file
-           # attachment
-           # - The message is not sent by the same user who posted the initial message
-           # - The message contains at least a certain number of characters (specified by the
-           # `min_characters` variable)
-           # - The message contains at least one of the required words (specified by the
-           # `required_words` list)
-           # - The user has not already received Feedback Points based on a prior message (Maximum 1 point per thread)
-           # - The initial thread author (Feedback Requestor) cannot score points on their own requests. 
-           # - If all of these criteria are met, the user who replied is awarded Feedback Points and Karma. 
+
+1. Channel check: The bot checks the type of channel where the message is posted. If the channel is a public thread, it will process the messages differently compared to when they are in a text channel. The bot is designed to enforce Feedback standards in forum channels. When the bot is in a text channel, the bot processes messages as commands. 
+
+2. Feedback enforcement: If the channel is a public thread and it is listed as an allowed channel, the bot enforces feedback requirements. It checks if the message meets certain criteria to be considered as a valid feedback request. If not, it deletes the message and informs the author about the issue. If it is valid, it checks if the user has enough feedback points to post the request.
+
+3. Feedback points: Feedback points are a system implemented by this bot to ensure that users are engaging with the community. Users earn feedback points by providing valuable feedback to others. If they don't have enough feedback points, they can't post a feedback request.
+
+4. OpenAI Integration: If enabled in the configuration, the bot uses OpenAI to determine if the feedback response is meaningful.
+
+5. Keyword and character count checks: The bot also checks if the feedback message contains certain required words and meets a minimum character requirement.
+
+6. Awarding points: If a user provides valid feedback (i.e., the feedback contains the required words, meets the character count, and is deemed meaningful by OpenAI), they get feedback points and a "karma point".
+
+9. Command processing: If the message is in a text channel, the bot processes it as a command.
+
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
