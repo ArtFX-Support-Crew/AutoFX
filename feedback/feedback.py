@@ -5,12 +5,13 @@ import logging
 import re
 import json
 import io
+import base64
 
 import discord
 from discord.ext import commands
 from discord import Embed
 
-from config import token, persona
+from config import token, feedback_curator
 from feedback_points import Points
 from karma import Karma
 from terms import terms
@@ -37,17 +38,36 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 openai = OpenAI()
 points = Points()
 karma = Karma()
-enforce_requirements = True
-valid_attachments = [".wav", ".mp3", ".flac", "aiff", ".m4a"]
-feedback_openai_integration = True 
-ai_persona = persona
-
+ai_persona = feedback_curator
 required_words = [term.lower() for term in terms]
-required_points = 1
-
-min_characters = 280
 
 required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|(?:www\.)?dropbox\.com|(?:www\.)?drive\.google\.com|clyp\.it)/'
+
+def load_configuration():
+    with open('configuration.json', 'r') as file:
+        configuration = json.load(file)
+    return configuration
+
+def save_configuration(configuration):
+    with open('configuration.json', 'w') as file:
+        json.dump(configuration, file, indent=4)
+
+
+@bot.command(name="config", help="Returns the current configuration settings.")
+@commands.has_permissions(manage_messages=True)
+async def config_state(ctx):
+    try: 
+        configuration = load_configuration()
+        embed = Embed(title="Dev Message - Feedback Bot Configuration", color=0x00ff00)
+        embed.add_field(name="Enforce Requirements", value=configuration["enforce_requirements"])
+        embed.add_field(name="Feedback OpenAI Integration", value=configuration["feedback_openai_integration"])
+        embed.add_field(name="Keyword Check", value="True" if configuration["keyword_check"] else "False")
+        embed.add_field(name="Required Points", value=configuration["required_points"])
+        embed.add_field(name="Minimum Characters", value=configuration["min_characters"])
+        embed.add_field(name="Developer Mode", value=configuration["dev_mode"])
+        await ctx.send(embed=embed)
+    except Exception as e:
+        await ctx.send(f"An error occurred while retrieving the configuration")
 
 
 # Logging configuration setup
@@ -201,7 +221,6 @@ def display_progress_bar(message, total_value):
 @bot.command(name="channel", help="Add or remove a forum or text channel ID where the bot enforces rules.\n Usage: /channel <add/remove> <forum/text> <channel_id>")
 @commands.has_permissions(manage_messages=True)
 async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
-    # sourcery skip: low-code-quality
     """Feedback - set_channel: Add or remove a forum or text channel ID where the bot enforces rules.
         Args:
         action (str): add / remove.
@@ -304,7 +323,8 @@ async def grant_points(ctx, user: discord.User, points_to_grant: int):
 @bot.command(name="requiredpoints", help="Set the required number of Feedback Points for a user to initiate a new Feedback Request.\n Usage: /requiredpoints <number>")
 @commands.has_permissions(manage_messages=True)
 async def requiredpoints(ctx, new_required_points: int):
-    global required_points
+    configuration = load_configuration()
+    
     if new_required_points is None: 
         await ctx.send("The required points value must be a valid number.")
         return
@@ -312,7 +332,9 @@ async def requiredpoints(ctx, new_required_points: int):
         await ctx.send("The required points value must be at least 0.")
         return
     try:
-        required_points = new_required_points
+        configuration['required_points'] = new_required_points
+        save_configuration(configuration)
+        required_points = configuration['required_points']
         await ctx.send(f"Required points value has been set to {required_points}.")
         logger.info(f"The required points value has been updated. The new value is {required_points}")
     except ValueError:
@@ -325,14 +347,16 @@ async def requiredpoints(ctx, new_required_points: int):
 @bot.command(name="minchars", help="Set the required number of characters for Feedback to be eligable for rewards.\n Usage: /minchars <number>")
 @commands.has_permissions(manage_messages=True)
 async def minchars(ctx, chars: int):
-    global min_characters
+    configuration = load_configuration()
+    min_characters = configuration["min_characters"]
     if chars is None: 
         await ctx.send(f"The number of feedback reply characters to qualify for Feedback Points currently set to: {min_characters}")
         return
     try: 
-        min_characters = chars
-        await ctx.send(f"The number of feedback reply characters to qualify for Feedback Points reward has been set to {min_characters}.")
-        logger.info(f"Minimum characters set to {min_characters}.")
+        configuration["min_characters"] = chars
+        save_configuration(configuration)
+        await ctx.send(f"The number of feedback reply characters to qualify for Feedback Points reward has been set to {chars}.")
+        logger.info(f"Minimum characters set to {chars}.")
     except ValueError: 
         await ctx.send("Please enter a valid integer for number of characters")
 
@@ -371,13 +395,13 @@ async def karmapoints(ctx, user: discord.User = None):
 
     await ctx.send(embed=embed)
 
-@bot.command(name="level", help="Check user Karma Level. \n Usage: /level <@user>")
-async def karmalevel(ctx, user: discord.User = None):
-    if user is None: 
-        user = ctx.author
-    user_id = str(user.id)
-    total_value = 25
-    return display_progress_bar(10)
+#@bot.command(name="level", help="Check user Karma Level. \n Usage: /level <@user>")
+#async def karmalevel(ctx, user: discord.User = None):
+#    if user is None: 
+#        user = ctx.author
+#    user_id = str(user.id)
+#    total_value = 25
+#    return display_progress_bar(10)
 
 
 # Displays a server leaderboard ranked by Karma
@@ -392,7 +416,7 @@ async def leaderboard(ctx):
 
     embed = discord.Embed(title="Feedback - Karma Leaderboard", description=leaderboard_string, color=0x00ff00)
     await ctx.send(embed=embed)
-    logger(f'{ctx.author} retrieved the Karma Leaderboard.')
+    logger.info(f'{ctx.author} retrieved the Karma Leaderboard.')
 
 
 # Admin / Moderator command: 
@@ -407,6 +431,7 @@ async def extension(ctx, action: str, filetype: str):
         action (str): add / remove
         filetype (str examples): .mp3, .wav, .ogg
     """
+    configuration = load_configuration
     if action is None or filetype is None:
         await ctx.send("Please provide an action (add/remove) and a file extension.")
         return
@@ -414,15 +439,15 @@ async def extension(ctx, action: str, filetype: str):
     action = action.lower()
 
     if action == "add":
-        if filetype not in valid_attachments:
-            valid_attachments.append(filetype)
+        if filetype not in configuration['valid_attachments']:
+            configuration['valid_attachments'].append(filetype)
             await ctx.send(f"{filetype} has been added to the list of allowed extensions.")
             logger.info(f"{ctx.author} has added {filetype} to the whitelist")
         else:
             await ctx.send(f"{filetype} is already in the whitelist.")
     elif action == "remove":
-        if filetype in valid_attachments:
-            valid_attachments.remove(filetype)
+        if filetype in configuration['valid_attachments']:
+            configuration['valid_attachments'].remove(filetype)
             await ctx.send(f"{filetype} has been removed from the list of allowed extensions.")
             logger.info(f"{ctx.author} has removed {filetype} from the whitelist")
         else:
@@ -443,36 +468,40 @@ async def enforce(ctx, status: str):
     Args:
         status (str): enable / disable / status
     """
-    global enforce_requirements
+    configuration = load_configuration()
     status = status.lower()
     if status is None or status not in ["enable", "disable", "status"]:
         await ctx.send("Please enter a valid enforcement status.")
         return
     if status == 'disable':
-        if enforce_requirements:
-            enforce_requirements = False
+        if configuration["enforce_requirements"]:
+            configuration["enforce_requirements"] = False
+            save_configuration(configuration)
             print('Feedback Request enforcement disabled.')
             logger.info(f"{ctx.author} has disabled Feedback Request enforcement.")
             await ctx.send("Feedback Request enforcement disabled.")
         else:
             await ctx.send("Feedback Request enforcement is already disabled.")
     elif status == 'enable':
-        if enforce_requirements:
+        if configuration["enforce_requirements"]:
+            save_configuration(configuration)
             await ctx.send("Feedback Request enforcement is already enabled.")
         else:
-            enforce_requirements = True
+            configuration["enforce_requirements"] = True
+            save_configuration(configuration)
             print('Feedback Request enforcement enabled.')
             logger.info(f"{ctx.author} has enabled Feedback Request enforcement.")
             await ctx.send("Feedback Request enforcement enabled.")
     elif status == 'status':
         logger.info(f"{ctx.author} has checked the Feedback Request enforcement status.")
-        if enforce_requirements:
+        if configuration["enforce_requirements"]:
             await ctx.send('Feedback Request enforcement is enabled.')
         else: 
             await ctx.send('Feedback Request enforcement is disabled.')
 
     else:
         await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
+        save_configuration(configuration)
 
 @bot.command(name="feedback_ai", help="Enable or Disable OpenAI Integration \n Usage: /feedback_ai <enable/disable/status>")
 @commands.has_permissions(manage_messages=True)
@@ -482,36 +511,39 @@ async def feedback_ai_integration(ctx, status: str):
     Args:
         status (str): enable / disable / status
     """
-    global feedback_openai_integration
+    configuration = load_configuration()
     status = status.lower()
     if status is None or status not in ["enable", "disable", "status"]:
         await ctx.send("Please enter a valid openAI status.")
         return
     if status == 'disable':
-        if feedback_openai_integration:
-            feedback_openai_integration = False
+        if configuration['feedback_openai_integration']:
+            configuration['feedback_openai_integration'] = False
+            save_configuration(configuration)
             print('Feedback OpenAI Integration disabled.')
             logger.info(f"{ctx.author} has disabled Open AI Integration.")
             await ctx.send("Feedback OpenAI Integration disabled.")
         else:
             await ctx.send("Feedback OpenAI Integration is already disabled.")
     elif status == 'enable':
-        if feedback_openai_integration:
+        if configuration['feedback_openai_integration']:
             await ctx.send("Feedback OpenAI Integration is already enabled.")
         else:
-            feedback_openai_integration = True
+            configuration['feedback_openai_integration'] = True
+            save_configuration(configuration)
             print('Feedback OpenAI Integration enabled.')
             logger.info(f"{ctx.author} has enabled Feedback OpenAI Integration.")
             await ctx.send("Feedback OpenAI Integration enabled.")
     elif status == 'status':
         logger.info(f"{ctx.author} has checked the Feedback OpenAI Integration status.")
-        if feedback_openai_integration:
+        if configuration['feedback_openai_integration']:
             await ctx.send('Feedback OpenAI Integration is enabled.')
         else: 
             await ctx.send('Feedback OpenAI Integration is disabled.')
 
     else:
         await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
+        save_configuration(configuration)
 
 # Admin / Moderator command: Add/Remove Keywords from the Feedback word filter.
 
@@ -595,9 +627,9 @@ async def on_message(message):
 # Process messages in the forum channel, if the forum channel is on the list of allowed channels
 
     if is_forum_channel:
-        
-        global enforce_requirements
-        if enforce_requirements:
+        configuration = load_configuration()
+
+        if configuration["enforce_requirements"]:
             print("Processing message in forum channel")
             logger.info("Processing message in forum channel")
 
@@ -610,8 +642,6 @@ async def on_message(message):
                 print(f'Added thread {thread_id} to feedback_points.json')
                 points.save()
 
-
-
             # Check if the user exists in the feedback_points.json file, if not, add it
             async for msg in message.channel.history(oldest_first=True):
                 parent_message = msg
@@ -620,11 +650,28 @@ async def on_message(message):
             # If it is the initial post, check that it meets the requirements
             is_initial_post = message.created_at == parent_message.created_at
             print(f'Message created: {message.created_at}. Parent message created: {parent_message.created_at}. Is initial post: {is_initial_post}')
+            
+            is_dev_mode = (configuration["dev_mode"] is True)
+
+            if is_initial_post and is_dev_mode:
+                # Dev message - Feedback Bot Configuration
+                configuration = load_configuration()
+                embed = Embed(title="Dev Message - Feedback Bot Configuration", color=0x00ff00)
+                embed.add_field(name="Enforce Requirements", value=configuration["enforce_requirements"])
+                embed.add_field(name="Feedback OpenAI Integration", value=configuration["feedback_openai_integration"])
+                embed.add_field(name="Keyword Check", value="True" if configuration["keyword_check"] else "False")
+                embed.add_field(name="Required Points", value=configuration["required_points"])
+                embed.add_field(name="Minimum Characters", value=configuration["min_characters"])
+                embed.add_field(name="Developer Mode", value=configuration["dev_mode"])
+
+                await message.channel.send(embed=embed)
+
             if is_initial_post:
                 print("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
                 logger.info("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
 
                 # Criteria for a valid Feedback Request
+                valid_attachments = configuration["valid_attachments"]
                 contains_valid_url = bool(re.search(required_url_pattern, message.content))
                 contains_valid_attachment = any(
                     attachment.filename.endswith(tuple(valid_attachments))
@@ -641,9 +688,10 @@ async def on_message(message):
                     await dm_channel.send(response)
                     logger.info(f'DM sent to user {parent_message.author.id}.')
                     return
-                
+
                 # Check if the user has at least the minimum required feedback points in feedback_points.json. 
                 # If not, delete the post and send a DM to the user
+                required_points = configuration['required_points']
                 user_points = points.get_users().get(user_id, 0)
                 if user_points < required_points:
                     await message.channel.delete()
@@ -653,8 +701,8 @@ async def on_message(message):
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response) 
                     return
+                
                 else: 
-
                     # Allow the Feedback Request, decrease the user's Feedback Points by the required amount
                     points.increment_user_points(user_id, -required_points)
                     updated_user_points = points.get_points(user_id)
@@ -679,49 +727,62 @@ async def on_message(message):
                     print(f'User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
                     logger.info(f'User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
                     return
-                
-                # Check if the reply meets the requirements for point rewards
+
+
+                # Check if OpenAI integration is enabled, if so, check if the response is meaningful 
+                feedback_openai_integration = configuration['feedback_openai_integration']
                 if feedback_openai_integration:
                     openai_check_result = openai.feedback_ai(message.content)
+                    print(openai_check_result)
+                    logger.info(openai_check_result)
                     if openai_check_result != 'Yes':  
                         print('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
                         logger.info('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
                         return
-                    print(f'OpenAI returned: {openai_check_result}')
-                    print(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
-                    logger.info(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
-                
+                    else:
+                        print(f'OpenAI returned: {openai_check_result}')
+                        print(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
+                        logger.info(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
+
+                # Check if the reply to the Feedback Request has the required words and meets the minimum character requirements
+
                 contains_required_words = any(word in message.content for word in required_words)
                 message_length = len(message.content)
-                print(f'Checking if message contains required words and meets minimum character requirements.')
-                logger.info(f'Checking if message contains required words and meets minimum character requirements.')
-                if contains_required_words and message_length >= min_characters:   
-                    print('Message contains required words and meets minimum character requirements.')
-                    logger.info('Message contains required words and meets minimum character requirements.')
-                    print('Checking if user has already been awarded points in the thread.')
-                    logger.info('Checking if user has already been awarded points in the thread.')
-                    if not points.user_in_thread(thread_id, user_id):
-                        points.add_user_to_thread(thread_id, user_id)
-                        print(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
-                        logger.info(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
-                        points.increment_user_points(user_id, required_points)
-                        points.save()
-                        logger.info('Feedback Points - Saved')
-                        await message.add_reaction('✅')
-                        karma.increment_user_karma(user_id, 1)
-                        karma.save()
-                        logger.info('Karma Points - Saved')
-                        await message.add_reaction('✅')
-                        # bot message in thread that feedback point has been awarded
-                        response = (f"{message.author.mention}, has earned one Feedback Point and increased their Karma!\n\n")
-                        await message.channel.send(response)
-                    else:
-                        print(f'User {message.author} has already provided feedback in thread {thread_id}.')
-                        logger.info(f'User {message.author} has already provided feedback in thread {thread_id}.')
-                    return
-                else: 
-                    print('Message did not meet requirements. No points rewarded')
-                    logger.info('Message did not meet requirements. No points rewarded')
+                keyword_check = configuration['keyword_check']
+
+                if keyword_check: 
+                    print(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
+                    logger.info(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
+                    min_characters = configuration['min_characters']
+                    if contains_required_words and message_length >= min_characters:   
+                        print(f'Message from {message.author} contains required words and meets minimum character requirements.')
+                        logger.info(f'Message from {message.author} contains required words and meets minimum character requirements.')
+                        print(f'Checking if {message.author} has already been awarded points in the thread.')
+                        logger.info(f'Checking if {message.author} has already been awarded points in the thread.')
+                        if not points.user_in_thread(thread_id, user_id):
+                            required_points = configuration['required_points']
+                            points.add_user_to_thread(thread_id, user_id)
+                            print(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
+                            logger.info(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
+                            points.increment_user_points(user_id, required_points)
+                            points.save()
+                            logger.info('Feedback Points - Saved')
+                            await message.add_reaction('✅')
+                            karma.increment_user_karma(user_id, 1)
+                            karma.save()
+                            logger.info('Karma Points - Saved')
+                            await message.add_reaction('✅')
+                            # bot message in thread that feedback point has been awarded
+                            response = (f"{message.author.mention}, has earned one Feedback Point and increased their Karma!\n\n")
+                            await message.channel.send(response)
+                        else:
+                            print(f'User {message.author} has already provided feedback in thread {thread_id}.')
+                            logger.info(f'User {message.author} has already provided feedback in thread {thread_id}.')
+                        return
+                    else: 
+                        print('Message did not meet requirements. No points rewarded')
+                        logger.info('Message did not meet requirements. No points rewarded')
+                
         else:
             print('Feedback Request and Award System is currently disabled. ')
 

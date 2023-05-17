@@ -2,7 +2,7 @@ import openai
 import config
 class OpenAI: 
     def __init__ (self):
-        self.persona = config.persona
+        self.persona = config.feedback_curator
         openai.api_key = config.openai_api_key
     def feedback_ai(self, message):
         prompt = f'{self.persona}\n\n{message}'
@@ -12,7 +12,7 @@ class OpenAI:
             response = openai.Completion.create(
                 engine='text-davinci-003',
                 prompt=prompt,
-                max_tokens=1,
+                max_tokens=50,
                 n=1,
                 stop=None,
                 temperature=1,
