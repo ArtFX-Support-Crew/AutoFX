@@ -43,6 +43,11 @@ required_words = [term.lower() for term in terms]
 
 required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|(?:www\.)?dropbox\.com|(?:www\.)?drive\.google\.com|clyp\.it)/'
 
+
+# Helper Functions
+# ----------------------------------------------
+
+
 def load_configuration():
     with open('configuration.json', 'r') as file:
         configuration = json.load(file)
@@ -52,6 +57,62 @@ def save_configuration(configuration):
     with open('configuration.json', 'w') as file:
         json.dump(configuration, file, indent=4)
 
+# Helper functions for adding and removing items from the lists
+def add_to_list(item, item_list):
+    if item not in item_list:
+        item_list.append(item)
+        return True
+    else:
+        return False
+
+def remove_from_list(item, item_list):
+    if item in item_list:
+        item_list.remove(item)
+        return True
+    else:
+        return False
+    
+# Helper functions for adding and removing keywords from required_words list
+def add_keyword(word, required_words):
+    word = word.lower()
+    if word not in required_words:
+        required_words.append(word)
+        return True
+    return False
+
+def remove_keyword(word, required_words):
+    word = word.lower()
+    if word in required_words:
+        required_words.remove(word)
+        return True
+    return False
+
+# Feedback text channels for bot commands and forum channels for feedback enforcement
+# are set in feedback_channels.json
+# function reads the channel IDs from the file
+
+def read_channel_ids():
+    with open("feedback_channels.json", "r") as file:
+        data = json.load(file)
+        return data["forum_channel_ids"], data["text_channel_ids"]
+
+def update_channel_ids(forum_channel_ids, text_channel_ids):
+    data = {
+        "forum_channel_ids": forum_channel_ids,
+        "text_channel_ids": text_channel_ids
+    }
+    with open("feedback_channels.json", "w") as file:
+        json.dump(data, file)
+
+def display_progress_bar(message, total_value):
+    embed = discord.Embed(title="Progress Bar")
+    embed.description = f"{message}: {total_value}%"
+    embed.add_field(
+        name="Progress",
+        value=f'[{"=" * int(total_value / 10)}{" " * (10 - int(total_value / 10))}]',
+        inline=True,
+    )
+    return embed
 
 @bot.command(name="config", help="Returns the current configuration settings.")
 @commands.has_permissions(manage_messages=True)
@@ -186,32 +247,6 @@ def help_command(ctx):
     # Send the Embed to the channel where the command was issued
     ctx.send(embed=embed)
 
-# Feedback text channels for bot commands and forum channels for feedback enforcement
-# are set in feedback_channels.json
-# function reads the channel IDs from the file
-
-def read_channel_ids():
-    with open("feedback_channels.json", "r") as file:
-        data = json.load(file)
-        return data["forum_channel_ids"], data["text_channel_ids"]
-
-def update_channel_ids(forum_channel_ids, text_channel_ids):
-    data = {
-        "forum_channel_ids": forum_channel_ids,
-        "text_channel_ids": text_channel_ids
-    }
-    with open("feedback_channels.json", "w") as file:
-        json.dump(data, file)
-
-def display_progress_bar(message, total_value):
-    embed = discord.Embed(title="Progress Bar")
-    embed.description = f"{message}: {total_value}%"
-    embed.add_field(
-        name="Progress",
-        value=f'[{"=" * int(total_value / 10)}{" " * (10 - int(total_value / 10))}]',
-        inline=True,
-    )
-    return embed
 
 # Bot Admin / Moderator Commands
 # ----------------------------------------------
@@ -221,15 +256,6 @@ def display_progress_bar(message, total_value):
 @bot.command(name="channel", help="Add or remove a forum or text channel ID where the bot enforces rules.\n Usage: /channel <add/remove> <forum/text> <channel_id>")
 @commands.has_permissions(manage_messages=True)
 async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
-    """Feedback - set_channel: Add or remove a forum or text channel ID where the bot enforces rules.
-        Args:
-        action (str): add / remove.
-        channel_type (str): forum / text.
-
-    Examples:
-        /log get - Sends the log file as an attachment.
-        /log clear - Clears the log file.
-    """
     forum_channel_ids, text_channel_ids = read_channel_ids()
 
     if action.lower() not in ["add", "remove"]:
@@ -239,57 +265,19 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
 
     if channel_type.lower() == "forum":
         if action.lower() == "add":
-            if channel_id not in forum_channel_ids:
-                try: 
-                    forum_channel_ids.append(channel_id)
-                    logger.info(f'Forum channel ID {channel_id} has been added to monitored channels.')
-                except ValueError:
-                    await ctx.send("Invalid channel ID.")
-                    logger.warning("An invalid channel ID was entered.")
-                    return
+            if add_to_list(channel_id, forum_channel_ids):
                 await ctx.send(f"Forum channel ID {channel_id} has been added.")
                 logger.info(f"Forum channel ID {channel_id} has been added.")
             else:
                 await ctx.send(f"Forum channel ID {channel_id} is already in the list.")
                 logger.info(f"Forum channel ID {channel_id} is already in the list.")
         elif action.lower() == "remove":
-            if channel_id in forum_channel_ids:
-                try:
-                    forum_channel_ids.remove(channel_id)
-                except ValueError:
-                    await ctx.send("Invalid channel ID.")
-                    logger.warning("An invalid channel ID was entered.")
-                    return
+            if remove_from_list(channel_id, forum_channel_ids):
                 await ctx.send(f"Forum channel ID {channel_id} has been removed.")
                 logger.info(f"Forum channel ID {channel_id} has been removed.")
             else:
                 await ctx.send(f"Forum channel ID {channel_id} is not in the list.")
-    elif channel_type.lower() == "text":
-        if action.lower() == "add":
-            if channel_id not in text_channel_ids:
-                try: 
-                    text_channel_ids.append(channel_id)
-                    logger.info(f'Text channel ID {channel_id} has been added to monitored channels.')
-                except ValueError:
-                    await ctx.send("Invalid channel ID.")
-                    logger.warning("An invalid channel ID was entered.")
-                    return
-                await ctx.send(f"Text channel ID {channel_id} has been added.")
-            else:
-                await ctx.send(f"Text channel ID {channel_id} is already in the list.")
-        elif action.lower() == "remove":
-            if channel_id in text_channel_ids:
-                try:
-                    text_channel_ids.remove(channel_id)
-                    logger.info(f'Text channel ID {channel_id} has been removed from monitored channels.')
-                except ValueError:
-                    await ctx.send("Invalid channel ID.")
-                    logger.warning("An invalid channel ID was entered.")
-                    return
-                await ctx.send(f"Text channel ID {channel_id} has been removed.")
-                logger.info(f'Text channel ID {channel_id} has been removed from monitored channels.')
-            else:
-                await ctx.send(f"Text channel ID {channel_id} is not in the list.")
+                logger.info(f"Forum channel ID {channel_id} is not in the list.")
     else:
         await ctx.send("Invalid channel type. Usage: /channel <add/remove> <forum/text> <channel_id>")
 
@@ -560,15 +548,13 @@ async def keywords(ctx, action: str, word: str):
         await ctx.send("Please enter a word to add or remove from the Feedback word filter.")
         return
     if action == 'add':
-        if word.lower() not in required_words:
-            required_words.append(word.lower())
+        if add_keyword(word, required_words):
             await ctx.send(f"{word} has been added to the Feedback word filter.")
             logger.info(f"{ctx.author} added {word} to Feedback word filter.")
         else:
             await ctx.send(f"{word} is already in the Feedback word filter.")
     elif action == 'remove':
-        if word.lower() in required_words:
-            required_words.remove(word.lower())
+        if remove_keyword(word, required_words):
             await ctx.send(f"{word} has been removed from the Feedback word filter.")
             logger.info(f"{ctx.author} removed {word} from Feedback word filter.")
         else:
@@ -593,6 +579,22 @@ async def commands_list(ctx):
     await ctx.send(embed=embed)
     logger.info(f'{ctx.author} has requested a list of Feedback commands.')
 
+
+@bot.command(name='devmode', help='Enable or disable developer mode\n Usage: /devmode <enable/disable>')
+@commands.has_permissions(manage_messages=True)  
+async def dev_mode(ctx, status: str):
+    if status.lower() not in ['enable', 'disable']:
+        await ctx.send('Invalid argument. Please use "dev_mode enable" or "dev_mode disable".')
+        return
+
+    configuration = load_configuration()
+    dev_mode_status = status.lower() == 'enable'  # Set status based on argument
+
+    # Save the new status in the configuration
+    configuration["dev_mode"] = dev_mode_status
+    save_configuration(configuration)  # Assumes you have a function to save the configuration
+
+    await ctx.send(f"Developer mode has been set to: {'ON' if dev_mode_status else 'OFF'}")
 # Ready the bot
 @bot.event
 async def on_ready():
@@ -719,8 +721,8 @@ async def on_message(message):
                 # Message is a reply, check if it meets the requirements
                 print('post is not an initial post')
                 logger.info(f'New Feedback by {message.author} in thread {thread_id}')
-                print(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Checking reward status...')
-                logger.info(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Checking reward status...')
+                print(f'Feedback provided by {message.author} in thread {thread_id} processing message...')
+                logger.info(f'Feedback provided by {message.author} in thread {thread_id} processing message...')
 
                 # Check if the user is the author of the Feedback Request, if so, do not award points
                 if parent_message.author.id == message.author.id:
@@ -745,11 +747,11 @@ async def on_message(message):
                         logger.info(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
 
                 # Check if the reply to the Feedback Request has the required words and meets the minimum character requirements
-
                 contains_required_words = any(word in message.content for word in required_words)
                 message_length = len(message.content)
                 keyword_check = configuration['keyword_check']
 
+                # Currently keyword check is always enabled. 
                 if keyword_check: 
                     print(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
                     logger.info(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
@@ -790,5 +792,6 @@ async def on_message(message):
     if is_text_channel:   
         await bot.process_commands(message)
 
-        # Run the bot
-bot.run(token)
+# Run the bot
+if __name__ == "__main__":
+    bot.run(token)
