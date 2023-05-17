@@ -69,7 +69,7 @@ A users Feedback Points are reset to zero when a new Feedback Request has made. 
 
 Basic Overview: 
 
-```
+
 1. Channel check: The bot checks the type of channel where the message is posted. If the channel is a public thread, it will process the messages differently compared to when they are in a text channel. The bot is designed to enforce Feedback standards in forum channels. When the bot is in a text channel, the bot processes messages as commands. 
 
 2. Feedback enforcement: If the channel is a public thread and it is listed as an allowed channel, the bot enforces feedback requirements. It checks if the message meets certain criteria to be considered as a valid feedback request. If not, it deletes the message and informs the author about the issue. If it is valid, it checks if the user has enough feedback points to post the request.
@@ -83,7 +83,6 @@ Basic Overview:
 6. Awarding points: If a user provides valid feedback (i.e., the feedback contains the required words, meets the character count, and is deemed meaningful by OpenAI), they get feedback points and a "karma point".
 
 9. Command processing: If the message is in a text channel, the bot processes it as a command.
-```
 
 
 
