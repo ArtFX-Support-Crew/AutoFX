@@ -9,7 +9,7 @@ class OpenAI:
         openai.api_key = os.getenv('OPENAI_API_KEY')
     def feedback_ai(self, message):
         prompt = f'{self.persona}\n\n{message}'
-        openai.api_key = os.getenv('OPENAI_API_KEY')y
+        openai.api_key = os.getenv('OPENAI_API_KEY')
         try:
             # Check if the message qualifies as meaningful feedback
             response = openai.Completion.create(
