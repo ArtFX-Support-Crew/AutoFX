@@ -1,0 +1,17 @@
+{
+    "required_points": 1,
+    "min_characters": 50,
+    "required_keyword_count": 1,
+    "feedback_openai_integration": true,
+    "valid_attachments": [
+        ".wav",
+        ".mp3",
+        ".flac",
+        "aiff",
+        ".m4a"
+    ],
+    "enforce_requirements": true,
+    "keyword_check": true,
+    "dev_mode": true
+
+}

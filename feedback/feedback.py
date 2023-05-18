@@ -5,13 +5,12 @@ import logging
 import re
 import json
 import io
-import base64
+from dotenv import load_dotenv
+import os
 
 import discord
 from discord.ext import commands
 from discord import Embed
-
-from config import token, feedback_curator
 from feedback_points import Points
 from karma import Karma
 from terms import terms
@@ -26,6 +25,7 @@ handler = logging.FileHandler("feedback_bot.log", encoding="utf-8", mode="a")
 print(f"Log file created at: {handler.baseFilename}")
 handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
 logger.addHandler(handler)
+load_dotenv()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -38,10 +38,10 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 openai = OpenAI()
 points = Points()
 karma = Karma()
-ai_persona = feedback_curator
+ai_persona = os.getenv("OPENAI_PERSONA")
 required_words = [term.lower() for term in terms]
 
-required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|(?:www\.)?dropbox\.com|(?:www\.)?drive\.google\.com|clyp\.it)/'
+required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|(?:www\.)?dropbox\.com|(?:www\.)?drive\.google\.com|clyp\.it)|(?:www\.)?whyp.it/'
 
 
 # Helper Functions
@@ -123,6 +123,7 @@ async def config_state(ctx):
         embed.add_field(name="Enforce Requirements", value= 'On' if configuration["enforce_requirements"] else 'Off')
         embed.add_field(name="Feedback OpenAI Integration", value= 'On' if configuration["feedback_openai_integration"] else 'Off')
         embed.add_field(name="Keyword Check", value='On' if configuration["keyword_check"] else 'Off')
+        embed.add_field(name="Required Keywords", value=configuration["required_keyword_count"])
         embed.add_field(name="Required Points", value=configuration["required_points"])
         embed.add_field(name="Minimum Characters", value=configuration["min_characters"])
         embed.add_field(name="Developer Mode", value='On' if configuration["dev_mode"] else 'Off')
@@ -332,7 +333,6 @@ async def requiredpoints(ctx, new_required_points: int):
 
 # Admin / Moderator command: Change the number of required characters
 # required in a feedback post reply, to qualify for Feedback Point reward
-
 @bot.command(name="minchars", help="Set the required number of characters for Feedback to be eligable for rewards.\n Usage: /minchars <number>")
 @commands.has_permissions(manage_messages=True)
 async def minchars(ctx, chars: int):
@@ -534,13 +534,28 @@ async def feedback_ai_integration(ctx, status: str):
 # Admin / Moderator command: Add/Remove Keywords from the Feedback word filter.
 @bot.command(name="keywords", help="Add or remove a required keyword from the Feedback word filter.\n Usage: /keywords <add/remove> <keyword>")
 @commands.has_permissions(manage_messages=True)
-async def keywords(ctx, action: str, word: str):
+async def keywords(ctx, action: str, *args):
     """ Admin / Moderator command: Add or remove a required keyword from the Feedback word filter. 
     Args:
         action (str): add / remove
         keyword (str examples): compression, mix, sidechain
     """
     action = action.lower()
+    configuration = load_configuration()
+    if action == 'count':
+        if len(args) == 1 and args[0].isdigit():
+            new_keywords_required = int(args[0])
+            # Set the new value for count
+            configuration['required_keyword_count'] = new_keywords_required 
+            save_configuration(configuration)
+            await ctx.send(f"Required Keywords has been set to {new_keywords_required}.")
+            logger.info(f"{ctx.author} has set the required keyword count to {new_keywords_required}.")
+        else:
+            await ctx.send("Invalid count value. Please provide a valid integer.")
+            logger.warning(f"{ctx.author} attempted to set the required keyword count to an invalid value.")
+        return
+
+    word = " ".join(args)  # Join the remaining arguments as a single word   
     if word is None:
         await ctx.send("Please enter a word to add or remove from the Feedback word filter.")
         return
@@ -558,6 +573,7 @@ async def keywords(ctx, action: str, word: str):
             await ctx.send(f"{word} is not in the Feedback word filter.")
     else:
         await ctx.send("Invalid action. Usage: !keyword <add/remove> <word>")
+        logger.warning(f"{ctx.author} attempted to add or remove a keyword with an invalid action.")
 
 # Admin / Moderator command: Display a list of bot commands
 @bot.command(name='commands', help='Show a list of all Feedback bot commands\n Usage: /commands')
@@ -582,6 +598,7 @@ async def commands_list(ctx):
 async def dev_mode(ctx, status: str):
     if status.lower() not in ['enable', 'disable']:
         await ctx.send('Invalid argument. Please use "dev_mode enable" or "dev_mode disable".')
+        logger.warning(f'{ctx.author} attempted to set dev mode with an invalid argument.')
         return
 
     configuration = load_configuration()
@@ -648,9 +665,9 @@ async def on_message(message):
             # If it is the initial post, check that it meets the requirements
             is_initial_post = message.created_at == parent_message.created_at
             print(f'Message created: {message.created_at}. Parent message created: {parent_message.created_at}. Is initial post: {is_initial_post}')
-            
+
             is_dev_mode = (configuration["dev_mode"] is True)
-            
+
             # If Dev mode is enabled, send a message to the channel with the current configuration
             if is_initial_post and is_dev_mode:
                 # Dev message - Feedback Bot Configuration
@@ -659,6 +676,7 @@ async def on_message(message):
                 embed.add_field(name="Enforce Requirements", value= 'On' if configuration["enforce_requirements"] else 'Off')
                 embed.add_field(name="Feedback OpenAI Integration", value= 'On' if configuration["feedback_openai_integration"] else 'Off')
                 embed.add_field(name="Keyword Check", value='On' if configuration["keyword_check"] else 'Off')
+                embed.add_field(name="Required Keywords", value=configuration["required_keyword_count"])
                 embed.add_field(name="Required Points", value=configuration["required_points"])
                 embed.add_field(name="Minimum Characters", value=configuration["min_characters"])
                 embed.add_field(name="Developer Mode", value='On' if configuration["dev_mode"] else 'Off')
@@ -700,7 +718,7 @@ async def on_message(message):
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response) 
                     return
-                
+
                 else: 
                     # Allow the Feedback Request, decrease the user's Feedback Points by the required amount
                     points.increment_user_points(user_id, -required_points)
@@ -740,19 +758,20 @@ async def on_message(message):
                         return
                     else:
                         print(f'OpenAI returned: {openai_check_result}')
-                        print(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
-                        logger.info(f'OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
+                        print('OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
+                        logger.info('OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
 
                 # Check if the reply to the Feedback Request has the required words and meets the minimum character requirements
-                contains_required_words = any(word in message.content for word in required_words)
-                message_length = len(message.content)
+                word_count = sum(word in message.content for word in required_words)
                 keyword_check = configuration['keyword_check']
 
-                # Currently keyword check is always enabled. 
+                # Currently keyword check is always enabled.
                 if keyword_check: 
                     print(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
                     logger.info(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
                     min_characters = configuration['min_characters']
+                    contains_required_words = word_count >= configuration['required_word_count']
+                    message_length = len(message.content)
                     if contains_required_words and message_length >= min_characters:   
                         print(f'Message from {message.author} contains required words and meets minimum character requirements.')
                         logger.info(f'Message from {message.author} contains required words and meets minimum character requirements.')
@@ -781,7 +800,7 @@ async def on_message(message):
                     else: 
                         print('Message did not meet requirements. No points rewarded')
                         logger.info('Message did not meet requirements. No points rewarded')
-                
+
         else:
             print('Feedback Request and Award System is currently disabled. ')
 
@@ -791,4 +810,5 @@ async def on_message(message):
 
 # Run the bot
 if __name__ == "__main__":
+    token = os.getenv('DISCORD_TOKEN')
     bot.run(token)

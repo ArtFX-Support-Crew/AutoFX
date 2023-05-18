@@ -1,12 +1,15 @@
 import openai
-import config
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
 class OpenAI: 
     def __init__ (self):
-        self.persona = config.feedback_curator
-        openai.api_key = config.openai_api_key
+        self.persona = os.getenv('OPENAI_PERSONA')
+        openai.api_key = os.getenv('OPENAI_API_KEY')
     def feedback_ai(self, message):
         prompt = f'{self.persona}\n\n{message}'
-        openai.api_key = config.openai_api_key
+        openai.api_key = os.getenv('OPENAI_API_KEY')y
         try:
             # Check if the message qualifies as meaningful feedback
             response = openai.Completion.create(

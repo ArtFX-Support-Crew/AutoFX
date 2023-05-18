@@ -20,15 +20,17 @@ class TestKarma:
 
     # Tests that user karma is incremented for a new user. 
     def test_increment_user_karma_new_user(self):
-        karma = Karma()
-        karma.increment_user_karma("new_user", 1)
-        assert karma.get_karma_total("new_user") == 1
+        self._extracted_from_test_increment_user_karma_valid_id_2("new_user", 1)
 
     # Tests that user karma is incremented with a valid user ID and amount. 
     def test_increment_user_karma_valid_id(self):
+        self._extracted_from_test_increment_user_karma_valid_id_2("user1", 5)
+
+    # TODO Rename this here and in `test_increment_user_karma_new_user` and `test_increment_user_karma_valid_id`
+    def _extracted_from_test_increment_user_karma_valid_id_2(self, arg0, arg1):
         karma = Karma()
-        karma.increment_user_karma("user1", 5)
-        assert karma.get_karma_total("user1") == 5
+        karma.increment_user_karma(arg0, arg1)
+        assert karma.get_karma_total(arg0) == arg1
 
     # Tests that the leaderboard is sorted in descending order by karma total. 
     def test_get_leaderboard(self):
