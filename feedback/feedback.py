@@ -524,7 +524,7 @@ async def feedback_ai_integration(ctx, status: str):
             await ctx.send('Feedback OpenAI Integration is disabled.')
 
     else:
-        await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
+        await ctx.send("Invalid argument. Usage: /feedback_ai <enable/disable>")
         save_configuration(configuration)
 
 # Admin / Moderator command: Add/Remove Keywords from the Feedback word filter.
