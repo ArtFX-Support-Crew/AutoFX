@@ -38,7 +38,6 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 openai = OpenAI()
 points = Points()
 karma = Karma()
-ai_persona = os.getenv("OPENAI_PERSONA")
 required_words = [term.lower() for term in terms]
 
 required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|(?:www\.)?dropbox\.com|(?:www\.)?drive\.google\.com|clyp\.it)|(?:www\.)?whyp.it/'
@@ -46,7 +45,6 @@ required_url_pattern = r'(?:https?://)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.
 
 # Helper Functions
 # ----------------------------------------------
-
 
 def load_configuration():
     with open('configuration.json', 'r') as file:
@@ -122,14 +120,15 @@ async def config_state(ctx):
         embed = Embed(title="Dev Message - Feedback Bot Configuration", color=0x00ff00)
         embed.add_field(name="Enforce Requirements", value= 'On' if configuration["enforce_requirements"] else 'Off')
         embed.add_field(name="Feedback OpenAI Integration", value= 'On' if configuration["feedback_openai_integration"] else 'Off')
+        #embed.add_field(name="OpenAI Model", value=OpenAI.engine)
         embed.add_field(name="Keyword Check", value='On' if configuration["keyword_check"] else 'Off')
         embed.add_field(name="Required Keywords", value=configuration["required_keyword_count"])
         embed.add_field(name="Required Points", value=configuration["required_points"])
         embed.add_field(name="Minimum Characters", value=configuration["min_characters"])
         embed.add_field(name="Developer Mode", value='On' if configuration["dev_mode"] else 'Off')
         await ctx.send(embed=embed)
-    except Exception as e:
-        await ctx.send(f"An error occurred while retrieving the configuration")
+    except Exception:
+        await ctx.send("An error occurred while retrieving the configuration")
 
 
 # Logging configuration setup
@@ -253,7 +252,6 @@ def help_command(ctx):
 # ----------------------------------------------
 
 # Set listening channels for the bot
-
 @bot.command(name="channel", help="Add or remove a forum or text channel ID where the bot enforces rules.\n Usage: /channel <add/remove> <forum/text> <channel_id>")
 @commands.has_permissions(manage_messages=True)
 async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
@@ -283,11 +281,9 @@ async def set_channel(ctx, action: str, channel_type: str, channel_id: int):
         await ctx.send("Invalid channel type. Usage: /channel <add/remove> <forum/text> <channel_id>")
 
     # Update the channel IDs in the JSON file
-    
     update_channel_ids(forum_channel_ids, text_channel_ids)
 
 # Admin / Moderator command: Grant a specific number of Feedback Points to a user.
-
 @bot.command(name="grant", help="Grant a specific number of Feedback Points to a user.\nUsage: /grant <@user> <points_to_grant>")
 @commands.has_permissions(manage_messages=True)
 async def grant_points(ctx, user: discord.User, points_to_grant: int):
@@ -371,6 +367,7 @@ async def karmapoints(ctx, user: discord.User = None):
     user_id = str(user.id)
     karma_total = karma.get_karma_total(user_id)
 
+    # return the user's own karma if no user is specified
     if user == ctx.author:
         embed = discord.Embed(title=f"Karma - {ctx.author}", description=f"Your Karma: {karma_total}", color=0x00ff00)
         logger.info(f"{ctx.author} retrieved their Karma.")
@@ -378,8 +375,7 @@ async def karmapoints(ctx, user: discord.User = None):
         embed = discord.Embed(title=f"Karma - {user}", description=f"{user}'s Karma: {karma_total}", color=0x00ff00)
         logger.info(f"{ctx.author} retrieved {user}'s Karma.")
     
-    # Create the embed
-
+    # Send the embed
     await ctx.send(embed=embed)
 
 #@bot.command(name="level", help="Check user Karma Level. \n Usage: /level <@user>")
@@ -750,16 +746,14 @@ async def on_message(message):
                 feedback_openai_integration = configuration['feedback_openai_integration']
                 if feedback_openai_integration:
                     openai_check_result = openai.feedback_ai(message.content)
-                    print(openai_check_result)
-                    logger.info(openai_check_result)
+                    logger.info(f"OpenAI Response: {openai_check_result}")
                     if openai_check_result != 'Yes':  
                         print('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
                         logger.info('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
                         return
                     else:
-                        print(f'OpenAI returned: {openai_check_result}')
-                        print('OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
-                        logger.info('OpenAI Determined that Feedback response is_meaningful. Message is eligable for Feedback Point Reward.')
+                        print('OpenAI Determined that Feedback response is meaningful. Message is eligable for Feedback Point Reward.')
+                        logger.info('OpenAI Determined that Feedback response is meaningful. Message is eligable for Feedback Point Reward.')
 
                 # Check if the reply to the Feedback Request has the required words and meets the minimum character requirements
                 word_count = sum(word in message.content for word in required_words)
@@ -770,7 +764,7 @@ async def on_message(message):
                     print(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
                     logger.info(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
                     min_characters = configuration['min_characters']
-                    contains_required_words = word_count >= configuration['required_word_count']
+                    contains_required_words = word_count >= configuration['required_keyword_count']
                     message_length = len(message.content)
                     if contains_required_words and message_length >= min_characters:   
                         print(f'Message from {message.author} contains required words and meets minimum character requirements.')
@@ -808,7 +802,26 @@ async def on_message(message):
     if is_text_channel:   
         await bot.process_commands(message)
 
+#@bot.event
+#async def on_reaction_add(reaction, user):
+#    emoji = ('✅')
+#
+#    if user == bot.user:
+#        return
+#
+     #   Check if the reaction is the correct emoji
+#    if reaction.emoji == emoji:
+#        # Get the author of the message that was reacted to
+#        message_author = reaction.message.author
+#        # Award the author who received the emoji with karma
+#        karma.increment_user_karma(str(message_author.id), 1)
+#        karma.save()
+#        await message_author.send(f"{message_author.mention}, you've been awarded for your Feedback contributions! You've an additional Karma Point!")
+
 # Run the bot
 if __name__ == "__main__":
     token = os.getenv('DISCORD_TOKEN')
     bot.run(token)
+
+
+
