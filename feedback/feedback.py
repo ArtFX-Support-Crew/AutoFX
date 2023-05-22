@@ -56,16 +56,16 @@ def save_configuration(configuration):
         json.dump(configuration, file, indent=4)
 
 # Helper functions for adding and removing items from the lists
-def add_to_list(item, item_list):
-    if item not in item_list:
-        item_list.append(item)
+def add_to_list(channel_id, forum_channel_ids):
+    if channel_id not in forum_channel_ids:
+        forum_channel_ids.append(channel_id)
         return True
     else:
         return False
 
-def remove_from_list(item, item_list):
-    if item in item_list:
-        item_list.remove(item)
+def remove_from_list(channel_id, forum_channel_ids):
+    if channel_id in forum_channel_ids:
+        forum_channel_ids.remove(channel_id)
         return True
     else:
         return False
@@ -293,6 +293,7 @@ async def grant_points(ctx, user: discord.User, points_to_grant: int):
         return
     if points_to_grant < 0: 
         await ctx.send("You cannot grant a negative number of points.")
+        logger.warning("grant_points function was called with a negative number of points.")
         return
     try: 
         user_id = str(user.id)
@@ -300,6 +301,7 @@ async def grant_points(ctx, user: discord.User, points_to_grant: int):
         new_points = points.get_users().get(user_id, 0)
     except ValueError: 
         await ctx.send("You cannot grant points to a bot.")
+        logger.warning("grant_points function was called with a bot user.")
         return
 
     await ctx.send(f"{user.mention} has been granted {points_to_grant} Feedback Points! Their new balance is {new_points}.")
@@ -344,6 +346,7 @@ async def minchars(ctx, chars: int):
         logger.info(f"Minimum characters set to {chars}.")
     except ValueError: 
         await ctx.send("Please enter a valid integer for number of characters")
+        logger.warning("minchars function was called without a valid number.")
 
 
 # Retrieve the Feedback points from feedback_points.json for a given user.
@@ -436,6 +439,7 @@ async def extension(ctx, action: str, filetype: str):
             await ctx.send(f"{filetype} is not on the whitelist.")
     else:
         await ctx.send("Invalid action. Usage: /extension <add/remove> <filetype>")
+        logger.warning(f"{ctx.author} attempted to add/remove a filetype with an invalid action.")
 
 
 # Admin / Moderator command: Toggle the enforcement for initial post requirements. Setting to Enabled
@@ -482,6 +486,7 @@ async def enforce(ctx, status: str):
 
     else:
         await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
+        logger.warning(f"{ctx.author} has entered an invalid argument for /enforce.")
         save_configuration(configuration)
 
 # Admin / Moderator command: Enable or Disable OpenAI Integration, which checks feedback responses for meaningful content.
@@ -497,6 +502,7 @@ async def feedback_ai_integration(ctx, status: str):
     status = status.lower()
     if status is None or status not in ["enable", "disable", "status"]:
         await ctx.send("Please enter a valid openAI status.")
+        logger.warning(f"{ctx.author} has entered an invalid openAI status.")
         return
     if status == 'disable':
         if configuration['feedback_openai_integration']:
@@ -524,7 +530,8 @@ async def feedback_ai_integration(ctx, status: str):
             await ctx.send('Feedback OpenAI Integration is disabled.')
 
     else:
-        await ctx.send("Invalid argument. Usage: /feedback_ai <enable/disable>")
+        await ctx.send("Invalid argument. Usage: /enforce <enable/disable>")
+        logger.warning(f"{ctx.author} has entered an invalid argument for /feedback_ai.")
         save_configuration(configuration)
 
 # Admin / Moderator command: Add/Remove Keywords from the Feedback word filter.
@@ -606,6 +613,12 @@ async def dev_mode(ctx, status: str):
 
     await ctx.send(f"Developer mode has been set to: {'ON' if dev_mode_status else 'OFF'}")
 
+@bot.command()
+async def pin_initial(ctx):
+    async for msg in ctx.channel.history(oldest_first=True):
+        parent_message = msg
+        break
+
 # Ready the bot
 @bot.event
 async def on_ready():
@@ -651,13 +664,17 @@ async def on_message(message):
             if thread_id not in points.get_threads():
                 points.add_thread(thread_id)
                 print(f'Added thread {thread_id} to feedback_points.json')
+                logger.info(f'Added thread {thread_id} to feedback_points.json')
                 points.save()
 
-            # Check if the user exists in the feedback_points.json file, if not, add it
+            # Retrieve the oldest message in the thread to determine the parent mesage
             async for msg in message.channel.history(oldest_first=True):
                 parent_message = msg
+                await parent_message.pin()
                 break
-
+            # Some code to delete attachments which are not with the initial post if necessary
+            #if message.attachments and message.id != parent_message.id:
+            #    await message.delete()
             # If it is the initial post, check that it meets the requirements
             is_initial_post = message.created_at == parent_message.created_at
             print(f'Message created: {message.created_at}. Parent message created: {parent_message.created_at}. Is initial post: {is_initial_post}')
@@ -671,6 +688,7 @@ async def on_message(message):
                 embed = Embed(title="Dev Message - Feedback Bot Configuration", color=0x00ff00)
                 embed.add_field(name="Enforce Requirements", value= 'On' if configuration["enforce_requirements"] else 'Off')
                 embed.add_field(name="Feedback OpenAI Integration", value= 'On' if configuration["feedback_openai_integration"] else 'Off')
+                embed.add_field(name="OpenAI AI Model", value="Trained text-davinci-003")
                 embed.add_field(name="Keyword Check", value='On' if configuration["keyword_check"] else 'Off')
                 embed.add_field(name="Required Keywords", value=configuration["required_keyword_count"])
                 embed.add_field(name="Required Points", value=configuration["required_points"])
@@ -680,8 +698,8 @@ async def on_message(message):
                 await message.channel.send(embed=embed)
 
             if is_initial_post:
-                print("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
-                logger.info("New Feedback Request submitted - Checking user Feedback Point and Post requirements")
+                print("CHECK: New Feedback Request submitted - Checking user Feedback Point and Post requirements")
+                logger.info("CHECK: New Feedback Request submitted - Checking user Feedback Point and Post requirements")
 
                 # Criteria for a valid Feedback Request
                 valid_attachments = configuration["valid_attachments"]
@@ -691,11 +709,12 @@ async def on_message(message):
                     for attachment in message.attachments
                 )
 
+                
                 # Check if the message contains either a valid URL or a valid attachment, if not delete the post
                 if not (contains_valid_url or contains_valid_attachment):
                     await message.channel.delete()
-                    print(f"User {message.author.id} Feedback Request was deleted due to not containing a valid URL or audio attachment.")
-                    logger.info(f"User {message.author.id} Feedback Request was deleted due to not containing a valid URL or audio attachment.")
+                    print(f"DELETED:User {message.author.id} Feedback Request was deleted due to not containing a valid URL or audio attachment.")
+                    logger.warning(f"DELETED:User {message.author.id} Feedback Request was deleted due to not containing a valid URL or audio attachment.")
                     response = (f"{message.author.mention}, your Feedback Request has been removed since it did not meet requirements. To create a Feedback Request, you need to include a valid URL or audio attachment: {valid_attachments}\n\n")
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response)
@@ -706,10 +725,12 @@ async def on_message(message):
                 # If not, delete the post and send a DM to the user
                 required_points = configuration['required_points']
                 user_points = points.get_users().get(user_id, 0)
+                print(f"CHECK: Checking {message.author.id}'s Feedback Point balance")
+                logger.info(f"CHECK: Checking {message.author.id}'s Feedback Point balance")
                 if user_points < required_points:
                     await message.channel.delete()
-                    print(f"User {message.author.id}'s Feedback Request was deleted due to insufficient Feedback Points.")
-                    logger.info(f"User {message.author.id} Feedback Request was deleted due to insufficient Feedback Points.")
+                    print(f"DELETED: {message.author.id}'s Feedback Request was deleted due to insufficient Feedback Points.")
+                    logger.warning(f"DELETED:{message.author.id}'s Feedback Request was deleted due to insufficient Feedback Points.")
                     response = (f"{message.author.mention}, your Feedback Request - {message.channel.name} has been removed. You need at least {required_points} Feedback Points to create a Feedback Request. Your current Feedback Points: {user_points}\n\n To earn Feedback Points, provide some feedback for other users.")
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response) 
@@ -719,14 +740,19 @@ async def on_message(message):
                     # Allow the Feedback Request, decrease the user's Feedback Points by the required amount
                     points.increment_user_points(user_id, -required_points)
                     updated_user_points = points.get_points(user_id)
-                    print(f"User {message.author.id} has sufficient Feedback Points and Post meets requirements..")
-                    logger.info(f"User {message.author.id} has sufficient Feedback Points and Post meets requirements..")
-                    print(f"User {parent_message.author.mention} has made a new Feedback Request and {required_points} Feedback Points has been deducted from their balance.")
+                    print(f"PASS: {message.author.id} has sufficient Feedback Points and Post meets requirements..")
+                    logger.info(f"PASS: {message.author.id} has sufficient Feedback Points and Post meets requirements..")
+                    print(f"PASS: {parent_message.author.mention} has made a new Feedback Request and {required_points} Feedback Points has been deducted from their balance.")
                     logger.info(f"User {parent_message.author.mention} has made a new Feedback Request and {required_points} Feedback Points has been deducted from their balance.")
                     response = (f"{parent_message.author.mention}, you have successfully created a Feedback Request - {message.channel.name}. {required_points} Feedback Points have been deducted from your balance. Your updated Feedback Points: {updated_user_points}\n\n")
                     dm_channel = await parent_message.author.create_dm()
                     await dm_channel.send(response)
                     logger.info(f"DM Sent to user {parent_message.author.mention}")
+
+            elif points.user_in_thread(thread_id, user_id):
+                print(f'CHECK: User {message.author} has already been rewarded in thread {thread_id}. Skipping message content checks. No points awarded.')
+                logger.info(f'CHECK: User {message.author} has already been rewarded in thread {thread_id}. Skipping message content checks. No points awarded.')
+                return
 
             else: 
                 # Message is a reply, check if it meets the requirements
@@ -737,8 +763,8 @@ async def on_message(message):
 
                 # Check if the user is the author of the Feedback Request, if so, do not award points
                 if parent_message.author.id == message.author.id:
-                    print(f'User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
-                    logger.info(f'User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
+                    print(f'PASS: User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
+                    logger.info(f'PASS: User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
                     return
 
 
@@ -746,57 +772,59 @@ async def on_message(message):
                 feedback_openai_integration = configuration['feedback_openai_integration']
                 if feedback_openai_integration:
                     openai_check_result = openai.feedback_ai(message.content)
+                    print('CHECK: OpenAI checking message content.')
                     logger.info(f"OpenAI Response: {openai_check_result}")
                     if openai_check_result != 'Yes':  
-                        print('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
-                        logger.info('OpenAI Determined that Feedback response is not meaningful. No points rewarded')
+                        print('RETURN: OpenAI Determined that Feedback response is not meaningful. No points rewarded')
+                        logger.info('RETURN: OpenAI Determined that Feedback response is not meaningful. No points rewarded')
                         return
                     else:
-                        print('OpenAI Determined that Feedback response is meaningful. Message is eligable for Feedback Point Reward.')
-                        logger.info('OpenAI Determined that Feedback response is meaningful. Message is eligable for Feedback Point Reward.')
+                        print('PASS: OpenAI Determined that Feedback response is meaningful. Message is eligable for Feedback Point Reward.')
+                        logger.info('PASS: OpenAI Determined that Feedback response is meaningful. Message is eligable for Feedback Point Reward.')
 
-                # Check if the reply to the Feedback Request has the required words and meets the minimum character requirements
-                word_count = sum(word in message.content for word in required_words)
-                keyword_check = configuration['keyword_check']
+                        # Check if the reply to the Feedback Request has the required words and meets the minimum character requirements
+                        word_count = sum(word in message.content for word in required_words)
+                        keyword_check = configuration['keyword_check']
 
-                # Currently keyword check is always enabled.
-                if keyword_check: 
-                    print(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
-                    logger.info(f'Checking if message from {message.author} contains required words and meets minimum character requirements.')
-                    min_characters = configuration['min_characters']
-                    contains_required_words = word_count >= configuration['required_keyword_count']
-                    message_length = len(message.content)
-                    if contains_required_words and message_length >= min_characters:   
-                        print(f'Message from {message.author} contains required words and meets minimum character requirements.')
-                        logger.info(f'Message from {message.author} contains required words and meets minimum character requirements.')
-                        print(f'Checking if {message.author} has already been awarded points in the thread.')
-                        logger.info(f'Checking if {message.author} has already been awarded points in the thread.')
-                        if not points.user_in_thread(thread_id, user_id):
-                            required_points = configuration['required_points']
-                            points.add_user_to_thread(thread_id, user_id)
-                            print(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
-                            logger.info(f'Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
-                            points.increment_user_points(user_id, required_points)
-                            points.save()
-                            logger.info('Feedback Points - Saved')
-                            await message.add_reaction('✅')
-                            karma.increment_user_karma(user_id, 1)
-                            karma.save()
-                            logger.info('Karma Points - Saved')
-                            await message.add_reaction('✅')
-                            # bot message in thread that feedback point has been awarded
-                            response = (f"{message.author.mention}, has earned one Feedback Point and increased their Karma!\n\n")
-                            await message.channel.send(response)
-                        else:
-                            print(f'User {message.author} has already provided feedback in thread {thread_id}.')
-                            logger.info(f'User {message.author} has already provided feedback in thread {thread_id}.')
-                        return
-                    else: 
-                        print('Message did not meet requirements. No points rewarded')
-                        logger.info('Message did not meet requirements. No points rewarded')
+                    # Currently keyword check is always enabled.
+                    if keyword_check: 
+                        print(f'CHECK: If message from {message.author} contains required words and meets minimum character requirements.')
+                        logger.info(f'CHECK: If message from {message.author} contains required words and meets minimum character requirements.')
+                        min_characters = configuration['min_characters']
+                        contains_required_words = word_count >= configuration['required_keyword_count']
+                        message_length = len(message.content)
+                        if contains_required_words and message_length >= min_characters:   
+                            print(f'PASS: Message from {message.author} contains required words and meets minimum character requirements.')
+                            logger.info(f'PASS: Message from {message.author} contains required words and meets minimum character requirements.')
+                            print(f'CHECK: If {message.author} has already been awarded points in the thread.')
+                            logger.info(f'CHECK: If {message.author} has already been awarded points in the thread.')
+                            if not points.user_in_thread(thread_id, user_id):
+                                required_points = configuration['required_points']
+                                points.add_user_to_thread(thread_id, user_id)
+                                print(f'PASS: Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
+                                logger.info(f'PASS: Feedback provided by {message.author} in thread {thread_id} meets requirements. Awarding 1 Feedback Point and 1 Karma Point.')
+                                points.increment_user_points(user_id, required_points)
+                                points.save()
+                                logger.info('Feedback Points - Saved')
+                                await message.add_reaction('✅')
+                                karma.increment_user_karma(user_id, 1)
+                                karma.save()
+                                logger.info('Karma Points - Saved')
+                                await message.add_reaction('✅')
+                                # bot message in thread that feedback point has been awarded
+                                response = (f"{message.author.mention}, has earned one Feedback Point and increased their Karma!\n\n")
+                                await message.channel.send(response)
+                            else:
+                                print(f'User {message.author} has already provided feedback in thread {thread_id}.')
+                                logger.info(f'User {message.author} has already provided feedback in thread {thread_id}.')
+                                return
+                        else: 
+                            print('Message did contain required words of meet minimum length. No points rewarded')
+                            logger.info('Message did contain required words of meet minimum length. No points rewarded')
 
         else:
-            print('Feedback Request and Award System is currently disabled. ')
+            print('PASS: Feedback Request and Award System is currently disabled. ')
+            logger.info('PASS: Feedback Request and Award System is currently disabled. ')
 
 
     if is_text_channel:   
@@ -822,6 +850,5 @@ async def on_message(message):
 if __name__ == "__main__":
     token = os.getenv('DISCORD_TOKEN')
     bot.run(token)
-
 
 
