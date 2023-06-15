@@ -450,4 +450,4 @@ terms = ('Ableton',
 'WAVWaveform',
 'Wet',
 'Woodwind',
-'Zero-crossing',)
+'Zero-crossing')

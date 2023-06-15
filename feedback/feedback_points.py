@@ -1,16 +1,25 @@
 import json
-class Points:
-    global required_points
-    required_points = 1
-    
 
+def load_configuration():
+    with open('configuration.json', 'r') as file:
+        configuration = json.load(file)
+    return configuration
+
+configuration = load_configuration()
+
+required_points = configuration['required_points']
+
+class Points:
     def __init__(self, filename='feedback_points.json'):
         self.filename = filename
         self.data = self.load()
 
     def load(self):
-        with open(self.filename, 'r') as f:
-            return json.load(f)
+        try:
+            with open(self.filename, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {"threads": {}, "users": {}}
 
     def save(self):
         with open(self.filename, 'w') as f:
@@ -33,8 +42,10 @@ class Points:
 
     # rewards a user with points
     def increment_user_points(self, user_id, points_change=required_points):
-        new_points = self.data['users'][user_id] + points_change
+        current_points = self.data['users'].get(user_id, 0)
+        new_points = current_points + points_change
         self.data['users'][user_id] = min(new_points, required_points)
+        self.save()
 
     def add_user_to_thread(self, thread_id, user_id):
         self.data['threads'][thread_id].append(user_id)

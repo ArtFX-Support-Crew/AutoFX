@@ -7,6 +7,10 @@ import json
 import io
 from dotenv import load_dotenv
 import os
+from pydub import AudioSegment
+import aiohttp
+import sys
+import traceback
 
 import discord
 from discord.ext import commands
@@ -202,9 +206,18 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.BadArgument):
         await ctx.send("Error in Command: Bad argument.")
         logger.info('Error in Command: Bad argument.')
-    elif isinstance(error, commands.CommandInvokeError):
-        await ctx.send("Error in Command: Command Invoke Error.")
-        logger.info('Error in Command: Command Invoke Error.')
+    if isinstance(error, commands.CommandInvokeError):
+        original = error.original
+        if not isinstance(original, discord.HTTPException):
+            print(f'In {ctx.command.qualified_name}:', file=sys.stderr)
+            traceback.print_tb(original.__traceback__)
+            print(f'{original.__class__.__name__}: {original}', file=sys.stderr)
+            logger.info(f'In {ctx.command.qualified_name}:')
+            await ctx.send('Something went wrong while executing the command.')
+        elif isinstance(error, commands.CommandNotFound):
+            await ctx.send('This command does not exist.')
+        else:
+            print(f'Unhandled error: {error}')
     elif isinstance(error, commands.TooManyArguments):
         await ctx.send("Error in Command: Too many arguments.")
         logger.info('Error in Command: Too many arguments.')
@@ -347,63 +360,6 @@ async def minchars(ctx, chars: int):
     except ValueError: 
         await ctx.send("Please enter a valid integer for number of characters")
         logger.warning("minchars function was called without a valid number.")
-
-
-# Retrieve the Feedback points from feedback_points.json for a given user.
-@bot.command(name="points", help="Get the number of Feedback Points for a given user. \n Usage: /points <@user>")
-async def feedbackpoints(ctx, user: discord.User = None):
-    if user is None:
-        user = ctx.author
-        points_balance = points.get_users().get(user, 0)
-        await ctx.send(f"{ctx.author} has {points_balance} Feedback Points.")
-        return
-    user_id = str(user.id)
-    user_points = points.get_users().get(user_id, 0)
-    await ctx.send(f"{user.mention} has {user_points} Feedback Points!")
-    logger.info(f"Feedback Points value was retrieved via bot command for {user.mention}")
-
-# Retrieve the Karma points from karma.json for a given user.
-@bot.command(name="karma", help="Check your Karma.\n Usage: /karma <@user>")
-async def karmapoints(ctx, user: discord.User = None):
-    if user is None: 
-        user = ctx.author
-    user_id = str(user.id)
-    karma_total = karma.get_karma_total(user_id)
-
-    # return the user's own karma if no user is specified
-    if user == ctx.author:
-        embed = discord.Embed(title=f"Karma - {ctx.author}", description=f"Your Karma: {karma_total}", color=0x00ff00)
-        logger.info(f"{ctx.author} retrieved their Karma.")
-    else:
-        embed = discord.Embed(title=f"Karma - {user}", description=f"{user}'s Karma: {karma_total}", color=0x00ff00)
-        logger.info(f"{ctx.author} retrieved {user}'s Karma.")
-    
-    # Send the embed
-    await ctx.send(embed=embed)
-
-#@bot.command(name="level", help="Check user Karma Level. \n Usage: /level <@user>")
-#async def karmalevel(ctx, user: discord.User = None):
-#    if user is None: 
-#        user = ctx.author
-#    user_id = str(user.id)
-#    total_value = 25
-#    return display_progress_bar(10)
-
-
-# Displays a server leaderboard ranked by Karma
-@bot.command(name="leaderboard", help="Displays a server leaderboard ranked by Karma.\n Usage: /leaderboard")
-async def leaderboard(ctx): 
-    # get a list of user total karma from karma.json and sort it as a leaderboard
-    leaderboard = karma.get_leaderboard()
-    leaderboard_string = "\n\n"
-    for user_id, karma_total in leaderboard:
-        user = await bot.fetch_user(user_id)
-        leaderboard_string += f"{user} - {karma_total}\n"
-
-    embed = discord.Embed(title="Feedback - Karma Leaderboard", description=leaderboard_string, color=0x00ff00)
-    await ctx.send(embed=embed)
-    logger.info(f'{ctx.author} retrieved the Karma Leaderboard.')
-
 
 # Admin / Moderator command: 
 # Command for setting allowed file types which are required to initiate a Feedback Request.
@@ -578,22 +534,6 @@ async def keywords(ctx, action: str, *args):
         await ctx.send("Invalid action. Usage: !keyword <add/remove> <word>")
         logger.warning(f"{ctx.author} attempted to add or remove a keyword with an invalid action.")
 
-# Admin / Moderator command: Display a list of bot commands
-@bot.command(name='commands', help='Show a list of all Feedback bot commands\n Usage: /commands')
-async def commands_list(ctx):
-    embed = Embed(
-        title="Feedback Commands",
-        description="Here's a list of available commands:",
-        color=0x00FF00  # Green color
-    )
-
-    # Add a field to embed with the commands
-    for command in bot.commands:
-        embed.add_field(name=command.name, value=command.help, inline=False)
-
-    await ctx.send(embed=embed)
-    logger.info(f'{ctx.author} has requested a list of Feedback commands.')
-
 # Admin / Moderator command: Responds to new Feedback Requests with the current bot configuration.
 # This is useful for referencing the bots configuration against behaviour in the same thread. 
 @bot.command(name='devmode', help='Enable or disable developer mode\n Usage: /devmode <enable/disable>')
@@ -612,6 +552,142 @@ async def dev_mode(ctx, status: str):
     save_configuration(configuration)  # Assumes you have a function to save the configuration
 
     await ctx.send(f"Developer mode has been set to: {'ON' if dev_mode_status else 'OFF'}")
+
+
+
+# User Commands
+# ----------------------------------------------
+
+# Retrieve the Feedback points from feedback_points.json for a given user.
+@bot.command(name="points", help="Get the number of Feedback Points for a given user. \n Usage: /points <@user>")
+async def feedbackpoints(ctx, user: discord.User = None):
+    if user is None:
+        user = ctx.author
+        points_balance = points.get_users().get(user, 0)
+        embed = discord.Embed(title=f"Feedback Points - {ctx.author}", description=f"Your Feedback Points: {points_balance}", color=0x00ff00)
+        logger.info(f"{ctx.author} retrieved their Points.")
+        await ctx.send(embed=embed)
+        return
+    
+    user = str(user)
+    points_balance = points.get_users().get(user, 0)
+    if user == ctx.author:
+        embed = discord.Embed(title=f"Feedback Points - {ctx.author}", description=f"Your Feedback Points: {points_balance}", color=0x00ff00)
+        await ctx.send(embed=embed)
+        logger.info(f"{ctx.author} retrieved their Points.")
+    else:
+        embed = discord.Embed(title=f"Feedback Points - {user}", description=f"{user}'s Feedback Points: {points_balance}", color=0x00ff00)
+        await ctx.send(embed=embed)
+        logger.info(f"{ctx.author} retrieved {user}'s Karma.")
+
+# Retrieve the Karma points from karma.json for a given user.
+@bot.command(name="karma", help="Check your Karma.\n Usage: /karma <@user>")
+async def karmapoints(ctx, user: discord.User = None):
+    if user is None: 
+        user = ctx.author
+    user_id = str(user.id)
+    karma_total = karma.get_karma_total(user_id)
+
+    # return the user's own karma if no user is specified
+    if user == ctx.author:
+        embed = discord.Embed(title=f"Karma - {ctx.author}", description=f"Your Karma: {karma_total}", color=0x00ff00)
+        logger.info(f"{ctx.author} retrieved their Karma.")
+    else:
+        embed = discord.Embed(title=f"Karma - {user}", description=f"{user}'s Karma: {karma_total}", color=0x00ff00)
+        logger.info(f"{ctx.author} retrieved {user}'s Karma.")
+    
+    # Send the embed
+    await ctx.send(embed=embed)
+
+#@bot.command(name="level", help="Check user Karma Level. \n Usage: /level <@user>")
+#async def karmalevel(ctx, user: discord.User = None):
+#    if user is None: 
+#        user = ctx.author
+#    user_id = str(user.id)
+#    total_value = 25
+#    return display_progress_bar(10)
+
+
+# Displays a server leaderboard ranked by Karma
+@bot.command(name="leaderboard", help="Displays a server leaderboard ranked by Karma.\n Usage: /leaderboard")
+async def leaderboard(ctx): 
+    # get a list of user total karma from karma.json and sort it as a leaderboard
+    leaderboard = karma.get_leaderboard()
+    leaderboard_string = "\n\n"
+    for user_id, karma_total in leaderboard:
+        user = await bot.fetch_user(user_id)
+        leaderboard_string += f"{user} - {karma_total}\n"
+
+    embed = discord.Embed(title="Feedback - Karma Leaderboard", description=leaderboard_string, color=0x00ff00)
+    await ctx.send(embed=embed)
+    logger.info(f'{ctx.author} retrieved the Karma Leaderboard.')
+
+# User Command: Convert Audio Files 
+@bot.command(name='convert', help='Convert an audio file to a different format\n Usage: /convert <file> <format>')
+async def convert(ctx, format: str):
+    if format not in ["ogg","mp3", "wav"]:
+        await ctx.send("Invalid format. Please provide either 'mp3' or 'wav' or 'ogg'.")
+        return
+
+    if not ctx.message.attachments:
+        await ctx.send("Please attach an audio file.")
+        return
+
+    attachment = ctx.message.attachments[0]
+    filename = attachment.filename
+
+    if not filename.endswith((".ogg",".mp3", ".wav")):
+        await ctx.send("Invalid file type. Please upload a .ogg, .mp3 or .wav file.")
+        return
+
+    # download the file
+    await attachment.save(filename)
+    output_filename = f"{os.path.splitext(filename)[0]}.{format}"
+
+    if format == "mp3" and filename.endswith(".wav"):
+        sound = AudioSegment.from_wav(filename)
+        sound.export(output_filename, format="mp3")
+        await ctx.send(file=discord.File(output_filename))
+    elif format == "wav" and filename.endswith(".mp3"):
+        sound = AudioSegment.from_mp3(filename)
+        sound.export(output_filename, format="wav")
+        await ctx.send(file=discord.File(output_filename))
+    elif format == "ogg" and filename.endswith(".mp3"):
+        sound = AudioSegment.from_mp3(filename)
+        sound.export(output_filename, format="ogg")
+        await ctx.send(file=discord.File(output_filename))
+    elif format == "ogg" and filename.endswith(".wav"): 
+        sound = AudioSegment.from_wav(filename)
+        sound.export(output_filename)
+        await ctx.send(file=discord.File(output_filename))
+
+
+    # cleanup
+    os.remove(filename)
+    if format == "mp3":
+        os.remove(output_filename)
+    elif format == "wav":
+        os.remove(output_filename)
+    elif format =="ogg":
+        os.remove(output_filename)
+
+
+# User Command: Display a list of bot commands
+@bot.command(name='commands', help='Show a list of all Feedback bot commands\n Usage: /commands')
+async def commands_list(ctx):
+    embed = Embed(
+        title="Feedback Commands",
+        description="Here's a list of available commands:",
+        color=0x00FF00  # Green color
+    )
+
+    # Add a field to embed with the commands
+    for command in bot.commands:
+        embed.add_field(name=command.name, value=command.help, inline=False)
+
+    await ctx.send(embed=embed)
+    logger.info(f'{ctx.author} has requested a list of Feedback commands.')
+
 
 @bot.command()
 async def pin_initial(ctx):
@@ -667,7 +743,7 @@ async def on_message(message):
                 logger.info(f'Added thread {thread_id} to feedback_points.json')
                 points.save()
 
-            # Retrieve the oldest message in the thread to determine the parent mesage
+            # Retrieve the oldest message in the thread to determine the parent message
             async for msg in message.channel.history(oldest_first=True):
                 parent_message = msg
                 await parent_message.pin()
@@ -720,7 +796,8 @@ async def on_message(message):
                     await dm_channel.send(response)
                     logger.info(f'DM sent to user {parent_message.author.id}.')
                     return
-
+                print(f"PASS: User {message.author.id} Feedback Request contains a valid URL or audio attachment.")
+                logger.info(f"PASS: User {message.author.id} Feedback Request contains a valid URL or audio attachment.")
                 # Check if the user has at least the minimum required feedback points in feedback_points.json. 
                 # If not, delete the post and send a DM to the user
                 required_points = configuration['required_points']
@@ -767,6 +844,10 @@ async def on_message(message):
                     logger.info(f'PASS: User {message.author} is the Feedback Request Author. Skipping message content checks. No points awarded.')
                     return
 
+                if points.user_in_thread(thread_id, user_id):
+                    print(f'CHECK: User {message.author} has already been rewarded in thread {thread_id}. Skipping message content checks. No points awarded.')
+                    logger.info(f'CHECK: User {message.author} has already been rewarded in thread {thread_id}. Skipping message content checks. No points awarded.')
+                    return
 
                 # Check if OpenAI integration is enabled, if so, check if the response is meaningful 
                 feedback_openai_integration = configuration['feedback_openai_integration']

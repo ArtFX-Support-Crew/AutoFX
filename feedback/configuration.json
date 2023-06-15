@@ -1,6 +1,6 @@
 {
     "required_points": 1,
-    "min_characters": 50,
+    "min_characters": 10,
     "required_keyword_count": 1,
     "feedback_openai_integration": true,
     "valid_attachments": [
