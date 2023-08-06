@@ -25,110 +25,112 @@ Fields:
 - filename: The name of the JSON file that stores the feedback points data.
 - data: A dictionary that stores the feedback points data.
 """
+
+
 class TestPoints:
-    # Tests that data can be loaded from file. 
+    # Tests that data can be loaded from file.
     def test_load_from_file(self):
         # Happy path test
-        points = Points('test_feedback_points.json')
-        assert points.load() == {'threads': {}, 'users': {}}
+        points = Points("test_feedback_points.json")
+        assert points.load() == {"threads": {}, "users": {}}
 
         # Edge case test
-        points = Points('nonexistent_file.json')
+        points = Points("nonexistent_file.json")
         assert points.load() == {}
 
         # General behavior test
         points = Points()
         assert isinstance(points.load(), dict)
 
-    # Tests that a thread can be added. 
+    # Tests that a thread can be added.
     def test_add_thread(self):
         # Happy path test
         points = Points()
-        points.add_thread('thread1')
-        assert 'thread1' in points.get_threads()
+        points.add_thread("thread1")
+        assert "thread1" in points.get_threads()
 
         # Edge case test
         points = Points()
-        points.add_thread('')
-        assert '' not in points.get_threads()
+        points.add_thread("")
+        assert "" not in points.get_threads()
 
         # General behavior test
         points = Points()
         initial_threads = points.get_threads()
-        points.add_thread('thread1')
+        points.add_thread("thread1")
         assert len(points.get_threads()) == len(initial_threads) + 1
 
-    # Tests that a user can be added. 
+    # Tests that a user can be added.
     def test_add_user(self):
         # Happy path test
         points = Points()
-        points.add_user('user1')
-        assert 'user1' in points.get_users()
+        points.add_user("user1")
+        assert "user1" in points.get_users()
 
         # Edge case test
         points = Points()
-        points.add_user('')
-        assert '' not in points.get_users()
+        points.add_user("")
+        assert "" not in points.get_users()
 
         # General behavior test
         points = Points()
         initial_users = points.get_users()
-        points.add_user('user1')
+        points.add_user("user1")
         assert len(points.get_users()) == len(initial_users) + 1
 
-    # Tests that user points can be incremented. 
+    # Tests that user points can be incremented.
     def test_increment_user_points(self):
         # Happy path test
         points = Points()
-        points.add_user('user1')
-        points.increment_user_points('user1')
-        assert points.get_points('user1') == 1
+        points.add_user("user1")
+        points.increment_user_points("user1")
+        assert points.get_points("user1") == 1
 
         # Edge case test
         points = Points()
-        points.add_user('user1')
-        points.increment_user_points('user1', 2)
-        assert points.get_points('user1') == 1
+        points.add_user("user1")
+        points.increment_user_points("user1", 2)
+        assert points.get_points("user1") == 1
 
         # General behavior test
         points = Points()
-        points.add_user('user1')
-        initial_points = points.get_points('user1')
-        points.increment_user_points('user1')
-        assert points.get_points('user1') == initial_points + 1
+        points.add_user("user1")
+        initial_points = points.get_points("user1")
+        points.increment_user_points("user1")
+        assert points.get_points("user1") == initial_points + 1
 
-    # Tests that a user can be added to a thread. 
+    # Tests that a user can be added to a thread.
     def test_add_user_to_thread(self):
-        points = self._extracted_from_test_add_user_to_thread_3('user1')
-        points.add_user_to_thread('thread1', 'user1')
-        assert 'user1' in points.data['threads']['thread1']
+        points = self._extracted_from_test_add_user_to_thread_3("user1")
+        points.add_user_to_thread("thread1", "user1")
+        assert "user1" in points.data["threads"]["thread1"]
 
-        points = self._extracted_from_test_add_user_to_thread_3('')
-        points.add_user_to_thread('thread1', '')
-        assert '' not in points.data['threads']['thread1']
+        points = self._extracted_from_test_add_user_to_thread_3("")
+        points.add_user_to_thread("thread1", "")
+        assert "" not in points.data["threads"]["thread1"]
 
-        points = self._extracted_from_test_add_user_to_thread_3('user1')
-        initial_users = points.data['threads']['thread1']
-        points.add_user_to_thread('thread1', 'user1')
-        assert len(points.data['threads']['thread1']) == len(initial_users) + 1
+        points = self._extracted_from_test_add_user_to_thread_3("user1")
+        initial_users = points.data["threads"]["thread1"]
+        points.add_user_to_thread("thread1", "user1")
+        assert len(points.data["threads"]["thread1"]) == len(initial_users) + 1
 
     # TODO Rename this here and in `test_add_user_to_thread`
     def _extracted_from_test_add_user_to_thread_3(self, arg0):
         # Happy path test
         result = Points()
-        result.add_thread('thread1')
+        result.add_thread("thread1")
         result.add_user(arg0)
         return result
 
-    # Tests that points can be granted to a user. 
+    # Tests that points can be granted to a user.
     def test_grant_points(self):
         # Happy path test
-        points = Points('test_feedback_points.json')
-        points.grant_points('user1', 1)
-        assert points.get_points('user1') == 1
+        points = Points("test_feedback_points.json")
+        points.grant_points("user1", 1)
+        assert points.get_points("user1") == 1
 
         # General behavior test
         points = Points()
-        initial_points = points.get_points('user1')
-        points.grant_points('user1', 2)
-        assert points.get_points('user1') == initial_points + 2
+        initial_points = points.get_points("user1")
+        points.grant_points("user1", 2)
+        assert points.get_points("user1") == initial_points + 2
